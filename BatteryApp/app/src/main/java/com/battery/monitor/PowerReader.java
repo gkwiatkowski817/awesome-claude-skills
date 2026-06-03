@@ -82,71 +82,84 @@ public class PowerReader {
         if (s.battVoltageV < 2.5f) s.battVoltageV = batteryVoltageMv / 1000f; // sanity
 
         // --- Battery current ---
-        long bmCurrentUa = Long.MIN_VALUE;
+        // Samsung (and many other OEMs) violate the API contract:
+        // BATTERY_PROPERTY_CURRENT_NOW and sysfs current_now return mA, not µA.
+        // We detect the scale: if |value| >= 100,000 it's in µA (divide by 1000),
+        // otherwise treat it as already in mA.
+        long bmRaw = Long.MIN_VALUE;
         BatteryManager bm = (BatteryManager) ctx.getSystemService(Context.BATTERY_SERVICE);
         if (bm != null) {
-            bmCurrentUa = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+            bmRaw = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
         }
 
-        long sysfsBattCurrentUa = readSysfsLong(BATT_CURRENT_PATHS);
-        long battCurrentUa;
+        long sysfsRaw = readSysfsLong(BATT_CURRENT_PATHS);
+        long rawValue;
 
-        if (sysfsBattCurrentUa != Long.MIN_VALUE && sysfsBattCurrentUa != 0) {
-            battCurrentUa = sysfsBattCurrentUa;
+        if (sysfsRaw != Long.MIN_VALUE && sysfsRaw != 0) {
+            rawValue = sysfsRaw;
             s.currentSource = "sysfs";
-        } else if (bmCurrentUa != Long.MIN_VALUE && bmCurrentUa != 0) {
-            battCurrentUa = bmCurrentUa;
+        } else if (bmRaw != Long.MIN_VALUE && bmRaw != 0) {
+            rawValue = bmRaw;
             s.currentSource = "BatteryManager";
         } else {
-            battCurrentUa = 0;
+            rawValue = 0;
             s.currentSource = "unavailable";
         }
 
-        // Normalise sign: positive = charging into battery
-        // Some Samsung kernels report negative when charging — detect and flip
-        if (plugged && battCurrentUa < -10_000) {
-            battCurrentUa = -battCurrentUa;
+        // Scale detection: |value| >= 100,000 → µA; otherwise already mA
+        float battCurrentMaRaw = (Math.abs(rawValue) >= 100_000L)
+                ? rawValue / 1000f
+                : (float) rawValue;
+
+        // Sign convention: positive = charging into battery, negative = discharging
+        // Some kernels invert this — if sign contradicts plug state, flip it
+        if (plugged && battCurrentMaRaw < -50f) {
+            battCurrentMaRaw = -battCurrentMaRaw;
         }
-        if (!plugged && battCurrentUa > 10_000) {
-            battCurrentUa = -battCurrentUa;
+        if (!plugged && battCurrentMaRaw > 50f) {
+            battCurrentMaRaw = -battCurrentMaRaw;
         }
 
-        s.battCurrentMa = battCurrentUa / 1000f;
+        s.battCurrentMa = battCurrentMaRaw;
 
         // --- Input current & voltage from charger sysfs ---
-        long inputCurrentUa = readSysfsLong(INPUT_CURRENT_PATHS);
-        long inputVoltageUv  = readSysfsLong(INPUT_VOLTAGE_PATHS);
+        long inputRawCurrent = readSysfsLong(INPUT_CURRENT_PATHS);
+        long inputRawVoltage = readSysfsLong(INPUT_VOLTAGE_PATHS);
 
-        if (plugged && inputCurrentUa > 0) {
-            s.inputCurrentMa = inputCurrentUa / 1000f;
-            s.inputVoltageV  = (inputVoltageUv > 0)
-                    ? inputVoltageUv / 1_000_000f
-                    : 5.0f; // USB default fallback
-            s.inputPowerW = s.inputCurrentMa * s.inputVoltageV / 1000f;
+        if (plugged && inputRawCurrent > 0) {
+            // Same scale detection for input current
+            s.inputCurrentMa = (inputRawCurrent >= 100_000L)
+                    ? inputRawCurrent / 1000f
+                    : (float) inputRawCurrent;
+            // Input voltage is reliably in µV in sysfs
+            s.inputVoltageV  = (inputRawVoltage > 0)
+                    ? inputRawVoltage / 1_000_000f
+                    : 5.0f;
+            s.inputPowerW = (s.inputCurrentMa / 1000f) * s.inputVoltageV;
         }
 
         // --- Derive charge power and device draw ---
+        // s.battCurrentMa is now in mA, s.battVoltageV in V
+        // Power (W) = current (A) * voltage (V) = (mA / 1000) * V
         if (plugged && s.battCurrentMa > 0) {
-            // Power going into battery cell
-            s.chargePowerW = s.battCurrentMa * s.battVoltageV / 1000f;
+            s.chargePowerW = (s.battCurrentMa / 1000f) * s.battVoltageV;
 
             if (s.inputPowerW > 0) {
-                // Device draw = what the charger delivers minus what goes to battery
                 s.deviceDrawW = Math.max(0, s.inputPowerW - s.chargePowerW);
             } else {
-                // No sysfs input power — estimate device draw from typical 88% charger efficiency
+                // No sysfs input data — estimate via typical 88% charger→battery efficiency
                 float estimatedInputW = s.chargePowerW / 0.88f;
                 s.deviceDrawW = Math.max(0, estimatedInputW - s.chargePowerW);
                 s.inputPowerW = estimatedInputW;
             }
         } else if (!plugged) {
-            // On battery: all power comes from discharge
+            // Discharging: device draw = power leaving the battery
             float dischargeMa = Math.abs(s.battCurrentMa);
-            s.deviceDrawW = dischargeMa * s.battVoltageV / 1000f;
+            s.deviceDrawW  = (dischargeMa / 1000f) * s.battVoltageV;
             s.chargePowerW = 0;
             s.inputPowerW  = 0;
         } else {
-            // Plugged but current ≈ 0 (full / trickle)
+            // Plugged but current ≈ 0 (battery full / trickle maintenance)
             s.chargePowerW = 0;
             s.deviceDrawW  = (s.inputPowerW > 0) ? s.inputPowerW : 0;
         }
