@@ -27,7 +27,8 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
 
-    public static final String CHANNEL_ID = "battery_protection";
+    /** @deprecated kept only so old code compiles; channels now live in ChargingProtectionService */
+    public static final String CHANNEL_ID = ChargingProtectionService.CHANNEL_ALERT;
     static final String PREFS      = "batt_prefs";
     static final String KEY_ENABLED = "protection_enabled";
 
@@ -363,12 +364,8 @@ public class MainActivity extends Activity {
     }
 
     private void createNotificationChannel() {
-        NotificationChannel ch = new NotificationChannel(
-            CHANNEL_ID, "Battery Protection", NotificationManager.IMPORTANCE_HIGH);
-        ch.enableLights(true);
-        ch.setLightColor(Color.GREEN);
-        ch.enableVibration(true);
-        getSystemService(NotificationManager.class).createNotificationChannel(ch);
+        // Channels are now created by ChargingProtectionService.createChannels().
+        // Nothing to do here — kept to avoid breaking the onCreate call.
     }
 
     private void requestNotifPermission() {
