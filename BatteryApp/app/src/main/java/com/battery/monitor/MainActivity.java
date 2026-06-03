@@ -259,7 +259,7 @@ public class MainActivity extends Activity {
         switchRow.setLayoutParams(new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
-        TextView swLabel = makeText("Charge Protection  100%→80%", 16, Color.WHITE, true);
+        TextView swLabel = makeText("Charge Protection  80% → 30%", 16, Color.WHITE, true);
         swLabel.setLayoutParams(new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
         switchRow.addView(swLabel);
 
@@ -280,7 +280,7 @@ public class MainActivity extends Activity {
                 Intent svc = new Intent(MainActivity.this, ChargingProtectionService.class);
                 if (on) {
                     startForegroundService(svc);
-                    tvProtDesc.setText("ON — alarm at 100% (unplug) and 80% (replug)");
+                    tvProtDesc.setText("ON — stops at 80%, resumes at 30% (root) or alerts you");
                     tvProtDesc.setTextColor(Color.rgb(76,175,80));
                 } else {
                     stopService(svc);
@@ -357,7 +357,7 @@ public class MainActivity extends Activity {
                 .getBoolean(KEY_ENABLED, false);
         protectionSwitch.setChecked(on);
         if (on) {
-            tvProtDesc.setText("ON — alarm at 100% (unplug) and 80% (replug)");
+            tvProtDesc.setText("ON — stops at 80%, resumes at 30% (root) or alerts you");
             tvProtDesc.setTextColor(Color.rgb(76,175,80));
             startForegroundService(new Intent(this, ChargingProtectionService.class));
         }

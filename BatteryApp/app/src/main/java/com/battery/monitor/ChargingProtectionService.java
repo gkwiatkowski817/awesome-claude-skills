@@ -19,17 +19,21 @@ import android.os.Vibrator;
 
 public class ChargingProtectionService extends Service {
 
-    // Two separate channels:
-    //   CHANNEL_SILENT  – used for the foreground "heartbeat" notification (no sound/vibration)
-    //   CHANNEL_ALERT   – used only when 100% or 80% is hit (loud alarm)
     static final String CHANNEL_SILENT = "battery_silent";
     static final String CHANNEL_ALERT  = "battery_alert";
 
     private static final int NOTIF_ONGOING = 1;
     private static final int NOTIF_ALERT   = 2;
 
-    private enum State { IDLE, CHARGED }
-    private State state = State.IDLE;
+    // Thresholds
+    private static final int STOP_PERCENT   = 80;   // disable charging at or above this
+    private static final int RESUME_PERCENT = 30;   // re-enable charging at or below this
+
+    private enum State { CHARGING_ALLOWED, CHARGING_STOPPED }
+    private State state = State.CHARGING_ALLOWED;
+
+    // Tracks whether we actually managed to stop charging via root
+    private boolean rootControlActive = false;
 
     private BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -38,31 +42,26 @@ public class ChargingProtectionService extends Service {
             int scale   = intent.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1);
             if (scale <= 0) return;
             int percent = (int) ((level / (float) scale) * 100);
-            int plugged = intent.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0);
-            boolean charging = plugged != 0;
+            boolean plugged = intent.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED, 0) != 0;
 
-            // ── State transitions (trigger alerts) ──────────────────────────
-            if (state == State.IDLE && percent >= 100 && charging) {
-                state = State.CHARGED;
-                fireAlert("Unplug charger now!",
-                    "Battery reached 100%. Unplug to protect battery health.", true);
-            } else if (state == State.CHARGED && percent <= 80 && !charging) {
-                state = State.IDLE;
-                fireAlert("Plug in charger",
-                    "Battery is at " + percent + "%. Safe to charge again.", false);
+            // ── State machine ────────────────────────────────────────────────
+            if (state == State.CHARGING_ALLOWED && percent >= STOP_PERCENT && plugged) {
+                state = State.CHARGING_STOPPED;
+                handleStopCharging(percent);
+
+            } else if (state == State.CHARGING_STOPPED && percent <= RESUME_PERCENT) {
+                state = State.CHARGING_ALLOWED;
+                handleResumeCharging(percent);
             }
 
-            // ── Ongoing silent notification ──────────────────────────────────
-            // Only shown (with content) when between 80 and 100 %.
-            // Outside that range the foreground notification is still required
-            // by Android but we keep it invisible (IMPORTANCE_MIN channel).
-            if (percent >= 80 && percent <= 100) {
-                String text = charging
-                    ? percent + "% — charging (protection active)"
+            // ── Ongoing silent notification (only shown between 30% and 100%) ──
+            if (percent >= RESUME_PERCENT && percent <= 100) {
+                String modeStr = rootControlActive ? "charging paused by app" : "alert mode";
+                String text = plugged
+                    ? percent + "% — charging  (" + modeStr + ")"
                     : percent + "% — unplugged";
-                updateOngoing(text, state == State.CHARGED);
+                updateOngoing(text, state == State.CHARGING_STOPPED);
             } else {
-                // Minimal placeholder — keeps the foreground service alive silently
                 updateOngoing(null, false);
             }
         }
@@ -74,36 +73,93 @@ public class ChargingProtectionService extends Service {
     public void onCreate() {
         super.onCreate();
         createChannels();
-        // Start foreground immediately with a silent placeholder
         startForeground(NOTIF_ONGOING, buildOngoing(null, false));
         registerReceiver(receiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
+    @Override public int onStartCommand(Intent intent, int flags, int startId) {
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        // Always re-enable charging when the service is killed
+        if (rootControlActive) {
+            ChargingController.enableCharging();
+            rootControlActive = false;
+        }
         try { unregisterReceiver(receiver); } catch (Exception ignored) {}
         getSystemService(NotificationManager.class).cancel(NOTIF_ONGOING);
     }
 
-    @Override
-    public IBinder onBind(Intent intent) { return null; }
+    @Override public IBinder onBind(Intent intent) { return null; }
 
     // -----------------------------------------------------------------------
+
+    private void handleStopCharging(int percent) {
+        ChargingController.Result result = ChargingController.disableCharging();
+
+        switch (result) {
+            case SUCCESS_SYSFS:
+            case SUCCESS_ROOT_SH:
+                // Root worked — charging is actually paused, show a silent status update
+                rootControlActive = true;
+                fireAlert(
+                    "Charging paused at " + percent + "%",
+                    "App stopped charging via root. Will resume at " + RESUME_PERCENT + "%.",
+                    true);
+                break;
+
+            case NO_ROOT:
+                // No root — fall back to alert so the user can unplug manually
+                rootControlActive = false;
+                fireAlert(
+                    "Unplug charger — battery at " + percent + "%",
+                    "Root not available. Please unplug manually to protect battery health.",
+                    true);
+                break;
+
+            case NO_NODE:
+                rootControlActive = false;
+                fireAlert(
+                    "Unplug charger — battery at " + percent + "%",
+                    "Charging control node not found. Please unplug manually.",
+                    true);
+                break;
+
+            default:
+                rootControlActive = false;
+                fireAlert(
+                    "Battery at " + percent + "% — action needed",
+                    "Could not stop charging automatically. Please unplug.",
+                    true);
+        }
+    }
+
+    private void handleResumeCharging(int percent) {
+        if (rootControlActive) {
+            ChargingController.enableCharging();
+            rootControlActive = false;
+            fireAlert(
+                "Charging resumed at " + percent + "%",
+                "App re-enabled charging. Plug in your charger.",
+                false);
+        } else {
+            fireAlert(
+                "Plug in charger — battery at " + percent + "%",
+                "Battery dropped to " + percent + "%. Safe to charge again.",
+                false);
+        }
+    }
+
+    // ── Ongoing notification ────────────────────────────────────────────────
 
     private void updateOngoing(String text, boolean atLimit) {
         getSystemService(NotificationManager.class)
             .notify(NOTIF_ONGOING, buildOngoing(text, atLimit));
     }
 
-    /**
-     * @param text  null → minimal invisible placeholder (used outside 80-100 % range)
-     */
     private Notification buildOngoing(String text, boolean atLimit) {
         PendingIntent pi = PendingIntent.getActivity(this, 0,
             new Intent(this, MainActivity.class),
@@ -113,26 +169,23 @@ public class ChargingProtectionService extends Service {
             .setSmallIcon(android.R.drawable.ic_lock_idle_charging)
             .setOngoing(true)
             .setContentIntent(pi)
-            .setOnlyAlertOnce(true);  // never make any sound even if channel somehow allows it
+            .setOnlyAlertOnce(true);
 
         if (text != null) {
-            b.setContentTitle("Charge Protection")
+            b.setContentTitle("Charge Protection  80% → 30%")
              .setContentText(text)
              .setColor(atLimit ? Color.RED : Color.GREEN);
         } else {
-            // Outside 80-100 %: hide the notification as much as possible.
-            // IMPORTANCE_MIN channel keeps it out of the status bar entirely.
             b.setContentTitle("Battery Monitor")
              .setContentText("Charge protection running")
              .setColor(Color.DKGRAY);
         }
-
         return b.build();
     }
 
-    // ── Alarm-level alert (only fires at 100% and 80%) ─────────────────────
+    // ── Alarm alert ─────────────────────────────────────────────────────────
 
-    private void fireAlert(String title, String message, boolean unplug) {
+    private void fireAlert(String title, String message, boolean urgent) {
         PendingIntent pi = PendingIntent.getActivity(this, 0,
             new Intent(this, MainActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP),
@@ -145,10 +198,10 @@ public class ChargingProtectionService extends Service {
         Notification alert = new Notification.Builder(this, CHANNEL_ALERT)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(unplug
+            .setSmallIcon(urgent
                 ? android.R.drawable.ic_dialog_alert
                 : android.R.drawable.ic_lock_idle_charging)
-            .setColor(unplug ? Color.RED : Color.GREEN)
+            .setColor(urgent ? Color.RED : Color.GREEN)
             .setCategory(Notification.CATEGORY_ALARM)
             .setFullScreenIntent(pi, true)
             .setContentIntent(pi)
@@ -167,26 +220,22 @@ public class ChargingProtectionService extends Service {
         }
     }
 
-    // ── Channel setup ───────────────────────────────────────────────────────
+    // ── Channels ─────────────────────────────────────────────────────────────
 
     private void createChannels() {
         NotificationManager nm = getSystemService(NotificationManager.class);
 
-        // Silent channel — for the ongoing foreground notification (zero noise)
         NotificationChannel silent = new NotificationChannel(
             CHANNEL_SILENT, "Charge Protection Status",
-            NotificationManager.IMPORTANCE_MIN);      // IMPORTANCE_MIN = no sound, no status bar icon
-        silent.setDescription("Ongoing silent status notification for charge protection");
+            NotificationManager.IMPORTANCE_MIN);
         silent.setSound(null, null);
         silent.enableVibration(false);
         silent.enableLights(false);
         nm.createNotificationChannel(silent);
 
-        // Alert channel — loud alarm only at 100% / 80%
         NotificationChannel alertCh = new NotificationChannel(
             CHANNEL_ALERT, "Charge Protection Alerts",
             NotificationManager.IMPORTANCE_HIGH);
-        alertCh.setDescription("Alarm when battery hits 100% or drops to 80%");
         alertCh.enableLights(true);
         alertCh.setLightColor(Color.RED);
         alertCh.enableVibration(true);
