@@ -14,10 +14,13 @@ import android.graphics.Typeface;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,195 +28,314 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     public static final String CHANNEL_ID = "battery_protection";
-    static final String PREFS = "batt_prefs";
+    static final String PREFS      = "batt_prefs";
     static final String KEY_ENABLED = "protection_enabled";
 
-    private TextView tvBatteryLevel, tvBatteryStatus, tvBatteryHealth;
-    private TextView tvBatteryTemp, tvBatteryVoltage, tvChargingType;
-    private Switch protectionSwitch;
-    private TextView tvProtectionDesc;
+    // --- battery info ---
+    private TextView tvLevel, tvStatus, tvHealth, tvTemp, tvVoltage, tvChargingType;
+
+    // --- power section ---
+    private TextView tvSpeedLabel, tvSpeedSub;
+    private TextView tvCurrentMa;
+    private TextView tvInputPower, tvChargePower, tvDeviceDraw;
+    private TextView tvInputVoltage, tvInputCurrent;
+    private TextView tvPowerSource;
+
+    // --- protection ---
+    private Switch   protectionSwitch;
+    private TextView tvProtDesc;
+
+    private int  lastVoltageMv = 3800;
+    private boolean lastPlugged = false;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable pollPower = new Runnable() {
+        @Override public void run() {
+            refreshPower();
+            handler.postDelayed(this, 1000);
+        }
+    };
 
     private BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            int level   = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale   = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
             int percent = (scale > 0) ? (int) ((level / (float) scale) * 100) : 0;
-            int status   = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-            int health   = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1);
-            int temp     = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
-            int voltage  = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1);
-            int plugged  = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+            int status  = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+            int health  = intent.getIntExtra(BatteryManager.EXTRA_HEALTH, -1);
+            int temp    = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
+            int voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1);
+            int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
 
-            tvBatteryLevel.setText(percent + "%");
-            tvBatteryStatus.setText("Status: " + getStatusString(status));
-            tvBatteryHealth.setText("Health: " + getHealthString(health));
-            tvBatteryTemp.setText("Temp: " + (temp / 10.0f) + " °C");
-            tvBatteryVoltage.setText("Voltage: " + voltage + " mV");
-            tvChargingType.setText("Charging: " + getPluggedString(plugged));
+            lastVoltageMv = voltage > 0 ? voltage : lastVoltageMv;
+            lastPlugged   = plugged != 0;
 
-            int color;
-            if (percent >= 60)      color = Color.rgb(76, 175, 80);
-            else if (percent >= 30) color = Color.rgb(255, 152, 0);
-            else                    color = Color.rgb(244, 67, 54);
-            tvBatteryLevel.setTextColor(color);
+            tvLevel.setText(percent + "%");
+            tvStatus.setText("Status: " + statusStr(status));
+            tvHealth.setText("Health: " + healthStr(health));
+            tvTemp.setText("Temperature: " + (temp / 10.0f) + " °C");
+            tvVoltage.setText("Battery Voltage: " + voltage + " mV");
+            tvChargingType.setText("Plug type: " + plugStr(plugged));
+
+            int col;
+            if (percent >= 60)      col = Color.rgb(76, 175, 80);
+            else if (percent >= 30) col = Color.rgb(255, 152, 0);
+            else                    col = Color.rgb(244, 67, 54);
+            tvLevel.setTextColor(col);
+
+            refreshPower();
         }
     };
+
+    // -----------------------------------------------------------------------
+    // Lifecycle
+    // -----------------------------------------------------------------------
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         createNotificationChannel();
-        requestNotificationPermissionIfNeeded();
-        buildUI();
+        requestNotifPermission();
+        setContentView(buildUI());
         restoreSwitchState();
     }
 
-    private void buildUI() {
+    @Override protected void onResume() {
+        super.onResume();
+        registerReceiver(batteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        handler.post(pollPower);
+    }
+
+    @Override protected void onPause() {
+        super.onPause();
+        unregisterReceiver(batteryReceiver);
+        handler.removeCallbacks(pollPower);
+    }
+
+    // -----------------------------------------------------------------------
+    // Power refresh (called every second)
+    // -----------------------------------------------------------------------
+
+    private void refreshPower() {
+        PowerReader.Snapshot snap = PowerReader.read(this, lastVoltageMv, lastPlugged);
+
+        // --- Speed label ---
+        String label = PowerReader.speedLabel(snap.battCurrentMa, snap.isCharging);
+        tvSpeedLabel.setText(label);
+        tvSpeedLabel.setTextColor(PowerReader.speedColor(snap.battCurrentMa, snap.isCharging));
+
+        // Current
+        String sign = snap.battCurrentMa >= 0 ? "+" : "";
+        tvCurrentMa.setText(sign + String.format("%.0f mA", snap.battCurrentMa));
+        tvCurrentMa.setTextColor(snap.isCharging
+            ? PowerReader.speedColor(snap.battCurrentMa, true)
+            : Color.rgb(255, 152, 0));
+
+        // Sub-label
+        if (snap.isCharging) {
+            tvSpeedSub.setText("Charging");
+            tvSpeedSub.setTextColor(Color.rgb(76,175,80));
+        } else {
+            tvSpeedSub.setText("Discharging");
+            tvSpeedSub.setTextColor(Color.rgb(255,152,0));
+        }
+
+        // Power rows
+        if (snap.isCharging) {
+            tvInputCurrent.setText(String.format("Input current:   %.0f mA", snap.inputCurrentMa > 0 ? snap.inputCurrentMa : Math.abs(snap.battCurrentMa)));
+            tvInputVoltage.setText(String.format("Input voltage:   %.2f V",  snap.inputVoltageV > 0 ? snap.inputVoltageV : 5.0f));
+            tvInputPower.setText(String.format("Input power:     %.2f W",   snap.inputPowerW));
+            tvChargePower.setText(String.format("Charge power:    %.2f W",   snap.chargePowerW));
+            tvDeviceDraw.setText(String.format("Device draw:     %.2f W",   snap.deviceDrawW));
+        } else {
+            tvInputCurrent.setText("Input current:   — (not charging)");
+            tvInputVoltage.setText("Input voltage:   — (not charging)");
+            tvInputPower.setText("Input power:     0.00 W");
+            tvChargePower.setText("Charge power:    0.00 W");
+            tvDeviceDraw.setText(String.format("Device draw:     %.2f W",   snap.deviceDrawW));
+        }
+
+        tvPowerSource.setText("Source: " + snap.currentSource);
+    }
+
+    // -----------------------------------------------------------------------
+    // UI builder
+    // -----------------------------------------------------------------------
+
+    private ScrollView buildUI() {
+        ScrollView sv = new ScrollView(this);
+        sv.setBackgroundColor(Color.parseColor("#121212"));
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(Color.parseColor("#121212"));
-        int pad = dp(24);
-        root.setPadding(pad, dp(40), pad, pad);
+        int pad = dp(20);
+        root.setPadding(pad, dp(36), pad, pad);
 
         // Title
-        TextView title = makeText("Battery Monitor", 24, Color.WHITE, true);
-        title.setPadding(0, 0, 0, dp(8));
-        root.addView(title);
+        root.addView(row("Battery Monitor", 24, Color.WHITE, true, 0, dp(6)));
 
-        // Large battery % indicator
-        tvBatteryLevel = makeText("--", 96, Color.rgb(76, 175, 80), true);
-        tvBatteryLevel.setGravity(Gravity.CENTER);
-        tvBatteryLevel.setPadding(0, 0, 0, dp(16));
-        root.addView(tvBatteryLevel);
+        // Big % number
+        tvLevel = makeText("--", 92, Color.rgb(76,175,80), true);
+        tvLevel.setGravity(Gravity.CENTER);
+        tvLevel.setPadding(0, 0, 0, dp(4));
+        root.addView(tvLevel);
 
-        // Stats card
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackgroundColor(Color.parseColor("#1E1E1E"));
-        int cp = dp(16);
-        card.setPadding(cp, cp, cp, cp);
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        cardParams.bottomMargin = dp(20);
-        card.setLayoutParams(cardParams);
+        // ── Battery info card ──────────────────────────────────────────────
+        LinearLayout infoCard = card("#1E1E1E", dp(16), 0, dp(16));
+        tvStatus      = infoRow(infoCard, "Status: --");
+        tvHealth      = infoRow(infoCard, "Health: --");
+        tvTemp        = infoRow(infoCard, "Temperature: --");
+        tvVoltage     = infoRow(infoCard, "Battery Voltage: --");
+        tvChargingType = infoRow(infoCard, "Plug type: --");
+        root.addView(infoCard);
 
-        tvBatteryStatus  = makeText("Status: --",   18, Color.parseColor("#EEEEEE"), false);
-        tvBatteryHealth  = makeText("Health: --",   18, Color.parseColor("#EEEEEE"), false);
-        tvBatteryTemp    = makeText("Temp: --",     18, Color.parseColor("#EEEEEE"), false);
-        tvBatteryVoltage = makeText("Voltage: --",  18, Color.parseColor("#EEEEEE"), false);
-        tvChargingType   = makeText("Charging: --", 18, Color.parseColor("#EEEEEE"), false);
+        // ── Power & Charging Speed card ────────────────────────────────────
+        LinearLayout powerCard = card("#0D1F0D", dp(16), dp(16), dp(16));
 
-        for (TextView tv : new TextView[]{tvBatteryStatus, tvBatteryHealth,
-                tvBatteryTemp, tvBatteryVoltage, tvChargingType}) {
-            tv.setPadding(0, 0, 0, dp(6));
-            card.addView(tv);
-        }
-        root.addView(card);
+        TextView powerTitle = makeText("⚡ Power & Charging Speed", 16, Color.parseColor("#AAFFAA"), true);
+        powerTitle.setPadding(0, 0, 0, dp(12));
+        powerCard.addView(powerTitle);
 
-        // Protection card
-        LinearLayout protCard = new LinearLayout(this);
-        protCard.setOrientation(LinearLayout.VERTICAL);
-        protCard.setBackgroundColor(Color.parseColor("#1A2A1A"));
-        protCard.setPadding(cp, cp, cp, cp);
-        LinearLayout.LayoutParams protParams = new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        protCard.setLayoutParams(protParams);
+        // Speed label row
+        LinearLayout speedRow = new LinearLayout(this);
+        speedRow.setOrientation(LinearLayout.HORIZONTAL);
+        speedRow.setGravity(Gravity.CENTER_VERTICAL);
+        speedRow.setPadding(0, 0, 0, dp(4));
 
-        // Row: label + switch
+        tvSpeedLabel = makeText("--", 28, Color.WHITE, true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
+        tvSpeedLabel.setLayoutParams(lp);
+        speedRow.addView(tvSpeedLabel);
+
+        tvSpeedSub = makeText("--", 16, Color.GRAY, false);
+        speedRow.addView(tvSpeedSub);
+        powerCard.addView(speedRow);
+
+        // Current reading (large)
+        tvCurrentMa = makeText("+0 mA", 42, Color.WHITE, true);
+        tvCurrentMa.setGravity(Gravity.CENTER);
+        tvCurrentMa.setPadding(0, dp(8), 0, dp(16));
+        powerCard.addView(tvCurrentMa);
+
+        // Divider
+        powerCard.addView(divider());
+
+        // Input section
+        TextView inputTitle = makeText("FROM CHARGER", 12, Color.parseColor("#888888"), true);
+        inputTitle.setPadding(0, dp(12), 0, dp(4));
+        powerCard.addView(inputTitle);
+        tvInputCurrent = infoRow(powerCard, "Input current:   --", Color.parseColor("#80DEEA"));
+        tvInputVoltage = infoRow(powerCard, "Input voltage:   --", Color.parseColor("#80DEEA"));
+        tvInputPower   = infoRow(powerCard, "Input power:     --", Color.parseColor("#4DD0E1"));
+
+        // Divider
+        powerCard.addView(divider());
+
+        // Breakdown section
+        TextView breakTitle = makeText("POWER BREAKDOWN", 12, Color.parseColor("#888888"), true);
+        breakTitle.setPadding(0, dp(12), 0, dp(4));
+        powerCard.addView(breakTitle);
+
+        tvChargePower = infoRow(powerCard, "Charge power:    --", Color.parseColor("#A5D6A7"));
+        tvDeviceDraw  = infoRow(powerCard, "Device draw:     --", Color.parseColor("#FFCC80"));
+
+        // Footnote
+        powerCard.addView(divider());
+        tvPowerSource = makeText("Source: --", 11, Color.parseColor("#555555"), false);
+        tvPowerSource.setPadding(0, dp(8), 0, 0);
+        powerCard.addView(tvPowerSource);
+
+        root.addView(powerCard);
+
+        // ── Charge Protection card ─────────────────────────────────────────
+        LinearLayout protCard = card("#1A2A1A", dp(16), dp(16), 0);
+
         LinearLayout switchRow = new LinearLayout(this);
         switchRow.setOrientation(LinearLayout.HORIZONTAL);
         switchRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
-        switchRow.setLayoutParams(rowParams);
+        switchRow.setLayoutParams(new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
-        TextView switchLabel = makeText("Charge Protection", 18, Color.WHITE, true);
-        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(
-                0, LayoutParams.WRAP_CONTENT, 1f);
-        switchLabel.setLayoutParams(labelParams);
-        switchRow.addView(switchLabel);
+        TextView swLabel = makeText("Charge Protection  100%→80%", 16, Color.WHITE, true);
+        swLabel.setLayoutParams(new LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+        switchRow.addView(swLabel);
 
         protectionSwitch = new Switch(this);
-        protectionSwitch.setTextColor(Color.WHITE);
         switchRow.addView(protectionSwitch);
         protCard.addView(switchRow);
 
-        // Description
-        tvProtectionDesc = makeText(
-            "OFF — alerts you to unplug at 100% and replug at 80%",
-            13, Color.parseColor("#AAAAAA"), false);
-        tvProtectionDesc.setPadding(0, dp(8), 0, 0);
-        protCard.addView(tvProtectionDesc);
+        tvProtDesc = makeText("OFF", 13, Color.parseColor("#AAAAAA"), false);
+        tvProtDesc.setPadding(0, dp(6), 0, 0);
+        protCard.addView(tvProtDesc);
 
         root.addView(protCard);
-        setContentView(root);
 
         protectionSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton btn, boolean checked) {
+            @Override public void onCheckedChanged(CompoundButton btn, boolean on) {
                 getSharedPreferences(PREFS, MODE_PRIVATE)
-                    .edit().putBoolean(KEY_ENABLED, checked).apply();
+                    .edit().putBoolean(KEY_ENABLED, on).apply();
                 Intent svc = new Intent(MainActivity.this, ChargingProtectionService.class);
-                if (checked) {
+                if (on) {
                     startForegroundService(svc);
-                    tvProtectionDesc.setText("ON — will alert you to unplug at 100%, replug at 80%");
-                    tvProtectionDesc.setTextColor(Color.rgb(76, 175, 80));
-                    Toast.makeText(MainActivity.this,
-                        "Protection ON: you'll be alerted at 100% and 80%",
-                        Toast.LENGTH_LONG).show();
+                    tvProtDesc.setText("ON — alarm at 100% (unplug) and 80% (replug)");
+                    tvProtDesc.setTextColor(Color.rgb(76,175,80));
                 } else {
                     stopService(svc);
-                    tvProtectionDesc.setText("OFF — alerts you to unplug at 100% and replug at 80%");
-                    tvProtectionDesc.setTextColor(Color.parseColor("#AAAAAA"));
+                    tvProtDesc.setText("OFF");
+                    tvProtDesc.setTextColor(Color.parseColor("#AAAAAA"));
                 }
             }
         });
+
+        sv.addView(root);
+        return sv;
     }
 
-    private void restoreSwitchState() {
-        boolean enabled = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getBoolean(KEY_ENABLED, false);
-        protectionSwitch.setChecked(enabled);
-        if (enabled) {
-            tvProtectionDesc.setText("ON — will alert you to unplug at 100%, replug at 80%");
-            tvProtectionDesc.setTextColor(Color.rgb(76, 175, 80));
-            startForegroundService(new Intent(this, ChargingProtectionService.class));
-        }
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    private LinearLayout card(String bg, int pad, int topMargin, int bottomMargin) {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setBackgroundColor(Color.parseColor(bg));
+        c.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+        lp.topMargin    = topMargin;
+        lp.bottomMargin = bottomMargin;
+        c.setLayoutParams(lp);
+        return c;
     }
 
-    private void createNotificationChannel() {
-        NotificationChannel channel = new NotificationChannel(
-            CHANNEL_ID, "Battery Protection",
-            NotificationManager.IMPORTANCE_HIGH);
-        channel.setDescription("Alerts for charge protection (unplug/replug)");
-        channel.enableLights(true);
-        channel.setLightColor(Color.GREEN);
-        channel.enableVibration(true);
-        getSystemService(NotificationManager.class).createNotificationChannel(channel);
+    private TextView infoRow(LinearLayout parent, String text) {
+        return infoRow(parent, text, Color.parseColor("#EEEEEE"));
     }
 
-    private void requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                    new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
-            }
-        }
+    private TextView infoRow(LinearLayout parent, String text, int color) {
+        TextView tv = makeText(text, 15, color, false);
+        tv.setPadding(0, 0, 0, dp(5));
+        parent.addView(tv);
+        return tv;
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        registerReceiver(batteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    private TextView row(String text, int sp, int color, boolean bold, int topM, int botM) {
+        TextView tv = makeText(text, sp, color, bold);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+        lp.topMargin    = topM;
+        lp.bottomMargin = botM;
+        tv.setLayoutParams(lp);
+        return tv;
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(batteryReceiver);
+    private android.view.View divider() {
+        android.view.View v = new android.view.View(this);
+        v.setBackgroundColor(Color.parseColor("#333333"));
+        v.setLayoutParams(new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, 1));
+        return v;
     }
 
     private TextView makeText(String text, int sp, int color, boolean bold) {
@@ -229,7 +351,37 @@ public class MainActivity extends Activity {
         return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
-    private String getStatusString(int s) {
+    private void restoreSwitchState() {
+        boolean on = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(KEY_ENABLED, false);
+        protectionSwitch.setChecked(on);
+        if (on) {
+            tvProtDesc.setText("ON — alarm at 100% (unplug) and 80% (replug)");
+            tvProtDesc.setTextColor(Color.rgb(76,175,80));
+            startForegroundService(new Intent(this, ChargingProtectionService.class));
+        }
+    }
+
+    private void createNotificationChannel() {
+        NotificationChannel ch = new NotificationChannel(
+            CHANNEL_ID, "Battery Protection", NotificationManager.IMPORTANCE_HIGH);
+        ch.enableLights(true);
+        ch.setLightColor(Color.GREEN);
+        ch.enableVibration(true);
+        getSystemService(NotificationManager.class).createNotificationChannel(ch);
+    }
+
+    private void requestNotifPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+    }
+
+    // --- string helpers ---
+    private String statusStr(int s) {
         switch (s) {
             case BatteryManager.BATTERY_STATUS_CHARGING:     return "Charging";
             case BatteryManager.BATTERY_STATUS_DISCHARGING:  return "Discharging";
@@ -238,24 +390,22 @@ public class MainActivity extends Activity {
             default: return "Unknown";
         }
     }
-
-    private String getHealthString(int h) {
+    private String healthStr(int h) {
         switch (h) {
-            case BatteryManager.BATTERY_HEALTH_GOOD:          return "Good";
-            case BatteryManager.BATTERY_HEALTH_OVERHEAT:      return "Overheat";
-            case BatteryManager.BATTERY_HEALTH_DEAD:          return "Dead";
-            case BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE:  return "Over Voltage";
-            case BatteryManager.BATTERY_HEALTH_COLD:          return "Cold";
+            case BatteryManager.BATTERY_HEALTH_GOOD:         return "Good";
+            case BatteryManager.BATTERY_HEALTH_OVERHEAT:     return "Overheat";
+            case BatteryManager.BATTERY_HEALTH_DEAD:         return "Dead";
+            case BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE: return "Over Voltage";
+            case BatteryManager.BATTERY_HEALTH_COLD:         return "Cold";
             default: return "Unknown";
         }
     }
-
-    private String getPluggedString(int p) {
+    private String plugStr(int p) {
         switch (p) {
-            case BatteryManager.BATTERY_PLUGGED_AC:       return "AC";
+            case BatteryManager.BATTERY_PLUGGED_AC:       return "AC / Fast charge";
             case BatteryManager.BATTERY_PLUGGED_USB:      return "USB";
             case BatteryManager.BATTERY_PLUGGED_WIRELESS: return "Wireless";
-            case 0: return "Not charging";
+            case 0: return "Unplugged";
             default: return "Unknown";
         }
     }
