@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cukiernia Dworek Komorno — interaktywne demo</title>
+<style>
+/* ===== Paleta dworska (motyw dworek-komorno) ===== */
+:root{
+	--cream:#faf6ef; --cream-dark:#f1e9da; --ink:#3a2a1d;
+	--gold:#b08d57; --gold-dark:#94703c; --burgundy:#7a2e2e; --white:#fff;
+	--serif:"Playfair Display",Georgia,serif; --sans:"Lato","Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.65}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;line-height:1.25}
+a{color:var(--gold-dark);text-decoration:none;cursor:pointer}
+a:hover{color:var(--burgundy)}
+img{max-width:100%}
+.container{max-width:1180px;margin:0 auto;padding:0 20px}
+.container-narrow{max-width:860px}
+
+.demo-banner{background:var(--burgundy);color:#fff;text-align:center;font-size:13px;padding:6px 12px}
+
+.btn{display:inline-block;padding:13px 30px;border-radius:2px;font-weight:700;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;border:1px solid transparent;cursor:pointer;font-family:var(--sans)}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:var(--gold-dark);color:#fff}
+.btn-burgundy{background:var(--burgundy);color:#fff}.btn-burgundy:hover{background:#5e2222;color:#fff}
+.btn-outline{background:transparent;color:#fff;border-color:#fff}.btn-outline:hover{background:#fff;color:var(--ink)}
+
+.topbar{background:var(--ink);color:var(--cream);font-size:13px;padding:6px 0}
+.topbar a{color:var(--cream)}.topbar a:hover{color:var(--gold)}
+.topbar-inner{display:flex;gap:24px;flex-wrap:wrap}
+.topbar-hours{margin-left:auto;opacity:.85}
+
+.site-header{background:#fff;border-bottom:3px double var(--gold);position:sticky;top:0;z-index:100}
+.header-inner{display:flex;align-items:center;gap:28px;padding:14px 20px;max-width:1180px;margin:0 auto;flex-wrap:wrap}
+.site-title{display:flex;flex-direction:column}
+.site-title-main{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--ink)}
+.site-title-tagline{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dark)}
+.main-nav{margin-left:auto}
+.main-nav ul{list-style:none;margin:0;padding:0;display:flex;gap:2px;flex-wrap:wrap}
+.main-nav li a{display:block;padding:8px 11px;color:var(--ink);font-size:13px;letter-spacing:.5px;text-transform:uppercase;border-bottom:2px solid transparent}
+.main-nav li a:hover,.main-nav li a.is-active{color:var(--burgundy);border-bottom-color:var(--gold)}
+
+.hero{position:relative;color:#fff;text-align:center;padding:100px 0 110px;background:linear-gradient(rgba(40,27,16,.62),rgba(40,27,16,.62)),repeating-linear-gradient(45deg,#5d4632 0 22px,#523c2a 22px 44px)}
+.hero-eyebrow{letter-spacing:4px;text-transform:uppercase;font-size:13px;color:var(--gold);margin:0 0 10px}
+.hero-title{font-size:clamp(34px,6vw,56px);color:#fff;margin:0 0 18px}
+.hero-subtitle{max-width:640px;margin:0 auto 32px;font-size:19px;font-weight:300}
+.hero-actions{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+
+.section{padding:60px 0}
+.section-alt{background:var(--cream-dark)}
+.section-title{text-align:center;font-size:32px;margin:0 0 14px;position:relative;padding-bottom:18px}
+.section-title::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:70px;height:2px;background:var(--gold)}
+.section-title-left{text-align:left}.section-title-left::after{left:0;transform:none}
+.section .section-title{margin-bottom:38px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.card{background:#fff;border:1px solid var(--cream-dark);border-top:3px solid var(--gold);padding:28px 24px;text-align:center;color:var(--ink);transition:box-shadow .2s,transform .2s;display:block}
+a.card:hover{box-shadow:0 8px 24px rgba(58,42,29,.12);transform:translateY(-3px);color:var(--ink)}
+.step-num{display:inline-flex;width:46px;height:46px;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--gold);color:var(--gold-dark);font-family:var(--serif);font-size:22px;margin-bottom:12px}
+.page-title{font-size:36px;margin:0 0 24px}
+
+.gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.gallery-tile{aspect-ratio:4/3;border:1px solid var(--cream-dark);background:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--gold-dark);font-family:var(--serif);font-size:20px;text-align:center;padding:10px}
+.gallery-tile small{font-family:var(--sans);font-size:12px;color:#8a7a68;letter-spacing:1px;text-transform:uppercase}
+
+.site-footer{background:var(--ink);color:var(--cream);margin-top:40px}
+.site-footer a{color:var(--gold)}.site-footer a:hover{color:#fff}
+.footer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;padding:48px 20px 36px;max-width:1180px;margin:0 auto}
+.footer-title{color:#fff;font-size:18px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--gold)}
+.site-footer ul{list-style:none;margin:0;padding:0}
+.site-footer li{margin-bottom:8px}
+.footer-bottom{border-top:1px solid rgba(176,141,87,.35);padding:14px 0;font-size:13px;text-align:center}
+
+/* ===== Strony (router) ===== */
+.page{display:none}
+.page.is-visible{display:block}
+
+/* ===== Kreator tortow ===== */
+.dwk-cb{max-width:860px;margin:0 auto}
+.dwk-cb-step{border:1px solid var(--cream-dark);background:#fff;border-top:3px solid var(--gold);padding:24px 26px 28px;margin:0 0 26px}
+.dwk-cb-step legend{font-family:var(--serif);font-size:22px;padding:0 10px}
+.dwk-cb-step-num{display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border-radius:50%;border:1px solid var(--gold);color:var(--gold-dark);font-size:16px;margin-right:8px}
+.req{color:var(--burgundy)}
+.opt{font-size:14px;color:#8a7a68;font-family:var(--sans)}
+.hint{font-size:14px;color:#8a7a68;margin:4px 0 14px}
+.dwk-cb-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.dwk-cb-option{display:block}
+.dwk-cb-option-wide{grid-column:1/-1}
+.dwk-cb-option input{position:absolute;opacity:0}
+.dwk-cb-option-box{display:flex;flex-direction:column;gap:4px;border:1px solid var(--cream-dark);border-radius:3px;padding:14px 16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;text-align:center;height:100%}
+.dwk-cb-option-wide .dwk-cb-option-box{text-align:left}
+.dwk-cb-option input:checked+.dwk-cb-option-box{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold);background:var(--cream)}
+.dwk-cb-option-box small{color:#8a7a68}
+.dwk-cb-option-box em{font-style:normal;color:var(--burgundy);font-weight:700}
+.shape-icon{display:block;margin:0 auto 8px;width:44px;height:44px;border:2px solid var(--gold-dark)}
+.shape-okragly{border-radius:50%}
+.shape-prostokatny{width:56px;height:38px}
+.shape-serce{border:none;background:var(--gold-dark);clip-path:path('M22 42 C-8 22 6 -4 22 12 C38 -4 52 22 22 42 Z')}
+.field{margin:0 0 16px}
+.field label{display:block;font-weight:700;margin-bottom:6px}
+.dwk-cb input[type=text],.dwk-cb input[type=tel],.dwk-cb input[type=email],.dwk-cb input[type=date],.dwk-cb select,.dwk-cb textarea{width:100%;padding:11px 13px;border:1px solid var(--cream-dark);border-radius:3px;font:inherit;background:#fff}
+.fields-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 18px}
+.consent label{font-weight:400}
+.photo-editor{margin-top:18px;display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.photo-stage{width:280px;height:280px;border-radius:50%;border:3px dashed var(--gold);overflow:hidden;position:relative;background:var(--cream);cursor:grab;touch-action:none;flex:none}
+.photo-stage:active{cursor:grabbing}
+#cb-photo-preview{position:absolute;top:50%;left:50%;max-width:none;width:100%;transform:translate(-50%,-50%);user-select:none;pointer-events:none}
+.photo-controls{flex:1;min-width:220px}
+.photo-controls label{display:block;font-weight:700;margin-bottom:14px}
+.photo-controls input[type=range]{width:100%}
+.btn-link{background:none;border:none;color:var(--burgundy);text-decoration:underline;cursor:pointer;padding:0;font:inherit}
+.cb-summary{background:var(--ink);color:var(--cream);padding:28px 30px;border-radius:3px}
+.cb-summary-line{margin:0 0 6px;font-size:15px;opacity:.9}
+.cb-total{font-family:var(--serif);font-size:26px;margin:14px 0 4px}
+.cb-total strong{color:var(--gold)}
+.cb-summary .hint{color:rgba(250,246,239,.65)}
+.cb-submit{display:inline-block;background:var(--gold);color:#fff;border:none;padding:15px 42px;font-weight:700;font-size:15px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:2px;margin-top:10px}
+.cb-submit:hover{background:var(--gold-dark)}
+.cb-message{margin-top:16px;font-weight:700}
+.cb-message.is-error{color:#e8a0a0}
+.cb-message.is-success{color:#bfe3b0}
+
+/* ===== Demo CRM ===== */
+.crm-wrap{background:#f0f0f1;border:1px solid #ccc;border-radius:4px;padding:26px 28px}
+.crm-wrap h2{margin-top:0}
+.crm-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:18px 0 26px}
+.crm-card{background:#fff;border:1px solid #e2d9c8;border-top:3px solid var(--gold);padding:16px 18px}
+.crm-card-value{font-size:26px;font-weight:700;display:block}
+.crm-card-label{color:#8a7a68;font-size:14px}
+.crm-pipeline{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 26px}
+.crm-step{display:flex;flex-direction:column;align-items:center;min-width:118px;padding:10px 14px;background:#fff;border:1px solid #e2d9c8;font-size:13px}
+.crm-step strong{font-size:20px}
+.crm-table{width:100%;border-collapse:collapse;background:#fff;font-size:14px}
+.crm-table th,.crm-table td{border:1px solid #e2d9c8;padding:8px 10px;text-align:left;vertical-align:top}
+.crm-table th{background:var(--cream)}
+.badge{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;font-weight:600;background:#eee}
+.badge-new{background:#fff3cd}.badge-confirmed{background:#cfe2ff}.badge-production{background:#e2d9f3}
+.badge-ready{background:#d1e7dd}.badge-delivered{background:#d1e7dd;color:#0f5132}.badge-cancelled{background:#f8d7da;color:#842029}
+
+@media(max-width:860px){.grid-3,.two-col,.gallery-grid{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr}.topbar-hours{display:none}}
+</style>
+</head>
+<body>
+
+<div class="demo-banner">DEMO INTERAKTYWNE — statyczny podgląd serwisu WordPress „Cukiernia Dworek Komorno”. Zamówienia testowe zapisują się lokalnie w przeglądarce i pojawiają w zakładce „Demo CRM”.</div>
+
+<div class="topbar">
+	<div class="container topbar-inner">
+		<span>&#9742; <a href="tel:+48774033919">+48 77 403 39 19</a></span>
+		<span>&#9993; <a href="mailto:cukiernia@dworekkomorno.eu">cukiernia@dworekkomorno.eu</a></span>
+		<span class="topbar-hours">wt.–pt. 13:00–21:00, sob.–niedz. 12:00–21:00</span>
+	</div>
+</div>
+
+<header class="site-header">
+	<div class="header-inner">
+		<a class="site-title" data-nav="home">
+			<span class="site-title-main">Dworek Komorno</span>
+			<span class="site-title-tagline">Cukiernia internetowa</span>
+		</a>
+		<nav class="main-nav">
+			<ul>
+				<li><a data-nav="home">Strona główna</a></li>
+				<li><a data-nav="oferta">Oferta</a></li>
+				<li><a data-nav="konfigurator">Stwórz własny tort</a></li>
+				<li><a data-nav="dostawa">Dostawa</a></li>
+				<li><a data-nav="punkty">Punkty odbioru</a></li>
+				<li><a data-nav="galeria">Galeria</a></li>
+				<li><a data-nav="onas">O nas</a></li>
+				<li><a data-nav="kontakt">Kontakt</a></li>
+				<li><a data-nav="crm" style="color:var(--burgundy);font-weight:700">Demo CRM</a></li>
+			</ul>
+		</nav>
+	</div>
+</header>
+
+<!-- ======================= STRONA GLOWNA ======================= -->
+<main class="page" id="page-home">
+	<section class="hero">
+		<div class="container">
+			<p class="hero-eyebrow">Cukiernia internetowa</p>
+			<h1 class="hero-title">Cukiernia Dworek Komorno</h1>
+			<p class="hero-subtitle">Torty z naturalnych składników, według tradycyjnych receptur. Zamów online z dostawą lub odbiorem w Dworku.</p>
+			<div class="hero-actions">
+				<a class="btn btn-gold" data-nav="konfigurator">Stwórz własny tort</a>
+				<a class="btn btn-outline" data-nav="oferta">Zobacz ofertę</a>
+			</div>
+		</div>
+	</section>
+	<section class="section">
+		<div class="container">
+			<h2 class="section-title">Jak zamówić tort?</h2>
+			<div class="grid-3">
+				<div class="card"><span class="step-num">1</span><h3>Wybierz kształt i rozmiar</h3><p>Tort okrągły, prostokątny, kwadratowy lub w kształcie serca — od 8 do 35 porcji.</p></div>
+				<div class="card"><span class="step-num">2</span><h3>Skomponuj smak i dekoracje</h3><p>Delikatne smaki śmietankowe i owocowe, wykończenie, dekoracje, własna grafika i napis.</p></div>
+				<div class="card"><span class="step-num">3</span><h3>Odbierz lub zamów dostawę</h3><p>Odbiór osobisty w Dworku, dostawa do domu albo dostawa ekspresowa 24h.</p></div>
+			</div>
+		</div>
+	</section>
+	<section class="section section-alt">
+		<div class="container">
+			<h2 class="section-title">Nasza oferta</h2>
+			<div class="grid-3">
+				<a class="card" data-nav="oferta"><h3>Torty okolicznościowe</h3><p>Urodziny, imieniny, chrzest, komunia, rocznice.</p></a>
+				<a class="card" data-nav="oferta"><h3>Torty weselne</h3><p>Klasyczne torty piętrowe, naked cake, monoporcje i słodkie stoły.</p></a>
+				<a class="card" data-nav="konfigurator"><h3>Tort z własną grafiką</h3><p>Wgraj zdjęcie, dopasuj kadr i dodaj napis — wydrukujemy je na jadalnym opłatku.</p></a>
+			</div>
+		</div>
+	</section>
+	<section class="section">
+		<div class="container two-col">
+			<div>
+				<h2 class="section-title section-title-left">Dostawa prosto do domu</h2>
+				<p>Tort przewozimy w warunkach chłodniczych i dostarczamy pod wskazany adres. Wybrane torty dostarczamy ekspresowo — w ciągu 24 godzin od telefonicznego potwierdzenia zamówienia.</p>
+				<a class="btn btn-burgundy" data-nav="dostawa">Szczegóły dostawy</a>
+			</div>
+			<div>
+				<h2 class="section-title section-title-left">Punkty odbioru</h2>
+				<p>Zamówienie możesz odebrać osobiście w cukierni lub w recepcji hotelu Dworek Komorno.</p>
+				<a class="btn btn-burgundy" data-nav="punkty">Zobacz punkty odbioru</a>
+			</div>
+		</div>
+	</section>
+</main>
+
+<!-- ======================= OFERTA ======================= -->
+<main class="page section" id="page-oferta">
+	<div class="container container-narrow">
+		<h1 class="page-title">Oferta</h1>
+		<p>Zapraszamy do zapoznania się z ofertą naszej cukierni. Wszystkie wypieki powstają z naturalnych składników, według tradycyjnych receptur Dworku Komorno.</p>
+		<h2>Torty okolicznościowe</h2>
+		<p>Torty urodzinowe, imieninowe, na chrzest, komunię i rocznice — w wielu kształtach, rozmiarach i smakach.</p>
+		<h2>Torty weselne</h2>
+		<p>Nasza specjalność: od klasycznych, eleganckich tortów piętrowych po nowoczesne realizacje — monoporcje, naked cake i słodkie stoły. Każdy projekt dopasowujemy do stylu i charakteru przyjęcia.</p>
+		<h2>Tort z własną grafiką</h2>
+		<p>Wgraj własne zdjęcie lub grafikę, a my wydrukujemy je na jadalnym opłatku. Skorzystaj z naszego <a data-nav="konfigurator">kreatora tortów</a>.</p>
+	</div>
+</main>
+
+<!-- ======================= KONFIGURATOR ======================= -->
+<main class="page section" id="page-konfigurator">
+	<div class="container container-narrow">
+		<h1 class="page-title" style="text-align:center">Stwórz własny tort</h1>
+		<p style="text-align:center;max-width:620px;margin:0 auto 36px">Skomponuj tort idealny na Twoją okazję: wybierz kształt, rozmiar, smak, wykończenie i dekoracje, dodaj własną grafikę oraz napis. Cena aktualizuje się na bieżąco.</p>
+
+		<form id="cake-builder" class="dwk-cb" novalidate>
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">1</span> Wybierz kształt tortu <span class="req">*</span></legend>
+				<div class="dwk-cb-options" id="cb-shapes"></div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">2</span> Wybierz rozmiar <span class="req">*</span></legend>
+				<p class="hint">Najpierw wybierz kształt — lista rozmiarów zostanie do niego dopasowana.</p>
+				<div class="dwk-cb-options" id="cb-sizes"></div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">3</span> Wybierz smak <span class="req">*</span></legend>
+				<div class="dwk-cb-options" id="cb-flavors"></div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">4</span> Wykończenie tortu <span class="req">*</span></legend>
+				<div class="dwk-cb-options" id="cb-finishes"></div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">5</span> Dekoracje <span class="opt">(opcjonalnie)</span></legend>
+				<div class="dwk-cb-options" id="cb-extras"></div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">6</span> Własna grafika <span class="opt">(opcjonalnie, +30 zł)</span></legend>
+				<p class="hint">Wgraj zdjęcie lub grafikę (JPG, PNG, WEBP, maks. 8 MB) — wydrukujemy je na jadalnym opłatku. Po wgraniu możesz przesunąć, przeskalować i obrócić obraz w podglądzie.</p>
+				<input type="file" id="cb-photo" accept="image/jpeg,image/png,image/webp">
+				<div class="photo-editor" id="cb-photo-editor" hidden>
+					<div class="photo-stage" id="cb-photo-stage">
+						<img id="cb-photo-preview" src="" alt="Podgląd grafiki na torcie" draggable="false">
+					</div>
+					<div class="photo-controls">
+						<label>Powiększenie <input type="range" id="cb-photo-scale" min="0.3" max="3" step="0.05" value="1"></label>
+						<label>Obrót <input type="range" id="cb-photo-rotate" min="-180" max="180" step="1" value="0"></label>
+						<button type="button" class="btn-link" id="cb-photo-remove">Usuń grafikę</button>
+						<p class="hint">Przeciągnij obraz, aby ustawić kadr.</p>
+					</div>
+				</div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">7</span> Napis na torcie i okazja</legend>
+				<p class="field">
+					<label for="cb-inscription">Napis na torcie <span class="opt">(np. „Sto lat, Aniu!”, maks. 60 znaków)</span></label>
+					<input type="text" id="cb-inscription" maxlength="60">
+				</p>
+				<p class="field">
+					<label for="cb-occasion">Okazja</label>
+					<select id="cb-occasion"></select>
+				</p>
+				<p class="field">
+					<label for="cb-notes">Dodatkowe uwagi dla cukiernika</label>
+					<textarea id="cb-notes" rows="3" maxlength="600"></textarea>
+				</p>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">8</span> Termin i sposób odbioru <span class="req">*</span></legend>
+				<div class="dwk-cb-options" id="cb-delivery"></div>
+				<p class="field">
+					<label for="cb-date">Data odbioru / dostawy <span class="req">*</span></label>
+					<input type="date" id="cb-date" required>
+					<span class="hint" id="cb-date-hint"></span>
+				</p>
+				<div id="cb-address-wrap" hidden>
+					<p class="field">
+						<label for="cb-address">Adres dostawy <span class="req">*</span></label>
+						<input type="text" id="cb-address" placeholder="ulica i numer, kod pocztowy, miejscowość">
+					</p>
+				</div>
+			</fieldset>
+
+			<fieldset class="dwk-cb-step">
+				<legend><span class="dwk-cb-step-num">9</span> Twoje dane <span class="req">*</span></legend>
+				<div class="fields-grid">
+					<p class="field"><label for="cb-name">Imię i nazwisko <span class="req">*</span></label><input type="text" id="cb-name" required></p>
+					<p class="field"><label for="cb-phone">Telefon <span class="req">*</span></label><input type="tel" id="cb-phone" required></p>
+					<p class="field"><label for="cb-email">E-mail <span class="req">*</span></label><input type="email" id="cb-email" required></p>
+				</div>
+				<p class="field consent">
+					<label><input type="checkbox" id="cb-consent"> Akceptuję regulamin i politykę prywatności. <span class="req">*</span></label>
+				</p>
+			</fieldset>
+
+			<div class="cb-summary">
+				<div id="cb-summary-lines"></div>
+				<p class="cb-total">Razem: <strong id="cb-total">0 zł</strong></p>
+				<p class="hint">Cena ma charakter orientacyjny — ostateczną kwotę potwierdzimy telefonicznie wraz z zamówieniem. (W demo zamówienie zapisuje się lokalnie i pojawia w zakładce „Demo CRM”.)</p>
+				<button type="submit" class="cb-submit">Zamów tort</button>
+				<div class="cb-message" id="cb-message" role="status"></div>
+			</div>
+		</form>
+	</div>
+</main>
+
+<!-- ======================= DOSTAWA ======================= -->
+<main class="page section" id="page-dostawa">
+	<div class="container container-narrow">
+		<h1 class="page-title">Dostawa prosto do domu</h1>
+		<p>Dowozimy torty pod wskazany adres na terenie Komorna i okolic (Kędzierzyn-Koźle, Opole i okolice — szczegóły w trakcie składania zamówienia). Tort przewozimy w warunkach chłodniczych, dzięki czemu dociera do Państwa świeży i w nienaruszonym stanie.</p>
+		<h2>Dostawa ekspresowa 24h</h2>
+		<p>Wybrane torty możemy dostarczyć w ciągu 24 godzin od telefonicznego potwierdzenia zamówienia. Opcję dostawy ekspresowej zaznaczysz w <a data-nav="konfigurator">kreatorze tortu</a>.</p>
+	</div>
+</main>
+
+<!-- ======================= PUNKTY ODBIORU ======================= -->
+<main class="page section" id="page-punkty">
+	<div class="container container-narrow">
+		<h1 class="page-title">Punkty odbioru zamówień</h1>
+		<p>Zamówione torty można odebrać osobiście w następujących punktach:</p>
+		<ul>
+			<li><strong>Cukiernia Dworek Komorno</strong> — ul. Harcerska 85, Komorno</li>
+			<li><strong>Recepcja Hotelu Dworek Komorno</strong> — ul. Harcerska 85, Komorno (odbiór całodobowy po wcześniejszym uzgodnieniu)</li>
+		</ul>
+	</div>
+</main>
+
+<!-- ======================= GALERIA ======================= -->
+<main class="page section" id="page-galeria">
+	<div class="container">
+		<h1 class="page-title" style="text-align:center">Galeria</h1>
+		<p style="text-align:center">Wybrane realizacje naszej pracowni cukierniczej. <span class="opt">(W docelowym serwisie: zdjęcia z własnej sesji.)</span></p>
+		<div class="gallery-grid">
+			<div class="gallery-tile">Tort weselny piętrowy<small>miejsce na zdjęcie</small></div>
+			<div class="gallery-tile">Naked cake z owocami<small>miejsce na zdjęcie</small></div>
+			<div class="gallery-tile">Tort urodzinowy z grafiką<small>miejsce na zdjęcie</small></div>
+			<div class="gallery-tile">Monoporcje<small>miejsce na zdjęcie</small></div>
+			<div class="gallery-tile">Tort komunijny<small>miejsce na zdjęcie</small></div>
+			<div class="gallery-tile">Słodki stół<small>miejsce na zdjęcie</small></div>
+		</div>
+	</div>
+</main>
+
+<!-- ======================= O NAS ======================= -->
+<main class="page section" id="page-onas">
+	<div class="container container-narrow">
+		<h1 class="page-title">O nas</h1>
+		<p>Cukiernia Dworek Komorno to pracownia działająca przy hotelu i restauracji Dworek Komorno. Tworzymy wypieki z naturalnych składników, według tradycyjnych receptur — od codziennych ciast po wielopiętrowe torty weselne.</p>
+		<p>Serwis internetowy powstał z myślą o klientach, którzy chcą zamówić tort w prosty, szybki i wygodny sposób — bez wychodzenia z domu, o dowolnej porze.</p>
+	</div>
+</main>
+
+<!-- ======================= KONTAKT ======================= -->
+<main class="page section" id="page-kontakt">
+	<div class="container container-narrow">
+		<h1 class="page-title">Kontakt</h1>
+		<p><strong>Cukiernia Dworek Komorno</strong><br>ul. Harcerska 85, Komorno<br>tel. +48 77 403 39 19<br>e-mail: cukiernia@dworekkomorno.eu</p>
+		<p>Zamówienia online przyjmujemy całą dobę, 7 dni w tygodniu. Telefonicznie jesteśmy dostępni w godzinach otwarcia restauracji.</p>
+	</div>
+</main>
+
+<!-- ======================= DEMO CRM ======================= -->
+<main class="page section" id="page-crm">
+	<div class="container">
+		<h1 class="page-title">Demo CRM — pulpit sprzedaży</h1>
+		<p class="hint">Podgląd panelu „Dworek CRM” z wtyczki WordPress. Dane poniżej to przykładowe zamówienia + zamówienia testowe złożone w kreatorze (zapis w pamięci przeglądarki). Zmiana statusu działa i jest zapamiętywana.</p>
+		<div class="crm-wrap">
+			<div class="crm-cards" id="crm-cards"></div>
+			<h2>Pipeline zamówień</h2>
+			<div class="crm-pipeline" id="crm-pipeline"></div>
+			<h2>Zamówienia</h2>
+			<div style="overflow-x:auto">
+				<table class="crm-table">
+					<thead><tr><th>#</th><th>Termin</th><th>Klient</th><th>Tort</th><th>Dostawa</th><th>Kwota</th><th>Status</th></tr></thead>
+					<tbody id="crm-orders"></tbody>
+				</table>
+			</div>
+			<p style="margin-top:14px"><button class="btn btn-burgundy" id="crm-reset" type="button" style="font-size:12px;padding:9px 18px">Wyczyść zamówienia testowe</button></p>
+		</div>
+	</div>
+</main>
+
+<footer class="site-footer">
+	<div class="footer-grid">
+		<div>
+			<h4 class="footer-title">Dworek Komorno</h4>
+			<p>ul. Harcerska 85, Komorno<br>tel. +48 77 403 39 19<br>cukiernia@dworekkomorno.eu</p>
+		</div>
+		<div>
+			<h4 class="footer-title">Na skróty</h4>
+			<ul>
+				<li><a data-nav="oferta">Oferta</a></li>
+				<li><a data-nav="konfigurator">Stwórz własny tort</a></li>
+				<li><a data-nav="dostawa">Dostawa</a></li>
+				<li><a data-nav="kontakt">Kontakt</a></li>
+			</ul>
+		</div>
+		<div>
+			<h4 class="footer-title">Informacje</h4>
+			<ul><li><a>Regulamin</a></li><li><a>Polityka prywatności</a></li></ul>
+		</div>
+	</div>
+	<div class="footer-bottom"><p>&copy; 2026 Cukiernia Dworek Komorno — demo</p></div>
+</footer>
+
+<script>
+(function(){
+'use strict';
+
+/* ===== Konfiguracja (odpowiednik includes/config.php) ===== */
+var CFG = {
+	shapes: { okragly:{label:'Okrągły'}, prostokatny:{label:'Prostokątny'}, kwadratowy:{label:'Kwadratowy'}, serce:{label:'Serce'} },
+	sizes: {
+		'okr-18':{shape:'okragly',label:'Ø 18 cm',weight:'1,0 kg',portions:8,price:120},
+		'okr-22':{shape:'okragly',label:'Ø 22 cm',weight:'1,5 kg',portions:12,price:160},
+		'okr-26':{shape:'okragly',label:'Ø 26 cm',weight:'2,2 kg',portions:18,price:220},
+		'okr-30':{shape:'okragly',label:'Ø 30 cm',weight:'3,0 kg',portions:24,price:280},
+		'pro-2030':{shape:'prostokatny',label:'20 × 30 cm',weight:'2,5 kg',portions:20,price:240},
+		'pro-3040':{shape:'prostokatny',label:'30 × 40 cm',weight:'4,5 kg',portions:35,price:400},
+		'kwa-2020':{shape:'kwadratowy',label:'20 × 20 cm',weight:'1,8 kg',portions:14,price:190},
+		'kwa-2525':{shape:'kwadratowy',label:'25 × 25 cm',weight:'2,6 kg',portions:21,price:260},
+		'ser-24':{shape:'serce',label:'Serce ~24 cm',weight:'1,6 kg',portions:12,price:200}
+	},
+	flavors: {
+		'smietankowy':{label:'Śmietankowy',desc:'Delikatny, wyjątkowo lekki tort przekładany puszystym kremem śmietankowym.',surcharge:0},
+		'smietankowo-malinowy':{label:'Śmietankowo-malinowy',desc:'Krem śmietankowy z frużeliną malinową.',surcharge:10},
+		'smietankowo-truskawkowy':{label:'Śmietankowo-truskawkowy',desc:'Krem śmietankowy z frużeliną truskawkową.',surcharge:10},
+		'smietankowo-porzeczkowy':{label:'Śmietankowo-porzeczkowy',desc:'Krem śmietankowy z nutą czarnej porzeczki.',surcharge:10},
+		'smietankowo-czekoladowy':{label:'Śmietankowo-czekoladowy',desc:'Krem śmietankowy z kremem czekoladowym.',surcharge:10},
+		'smiet-czek-wisniowy':{label:'Śmietankowo-czekoladowo-wiśniowy',desc:'Krem czekoladowy z wiśniami w likworze.',surcharge:15},
+		'czekoladowy':{label:'Czekoladowy',desc:'Kakaowe blaty z intensywnym kremem czekoladowym.',surcharge:10},
+		'orzechowy':{label:'Orzechowy',desc:'Krem orzechowy z prażonymi orzechami laskowymi.',surcharge:15}
+	},
+	finishes: {
+		'krem':{label:'Krem śmietankowy (klasyczne wykończenie)',surcharge:0},
+		'polewa':{label:'Polewa czekoladowa',surcharge:15},
+		'tynk':{label:'Tynk maślany (gładkie wykończenie)',surcharge:25},
+		'masa-cukrowa':{label:'Masa cukrowa',surcharge:40}
+	},
+	extras: {
+		'owoce':{label:'Świeże owoce sezonowe',price:25},
+		'kwiaty':{label:'Kwiaty cukrowe',price:30},
+		'makaroniki':{label:'Makaroniki',price:25},
+		'figurka':{label:'Figurka okolicznościowa',price:35},
+		'swieczki':{label:'Świeczki urodzinowe',price:5},
+		'zloto':{label:'Jadalne złoto / posypka',price:15}
+	},
+	photo_price:30,
+	occasions: { urodziny:'Urodziny', imieniny:'Imieniny', rocznica:'Rocznica', chrzest:'Chrzest', komunia:'Komunia', slub:'Ślub / wesele', firmowa:'Impreza firmowa', inna:'Inna okazja' },
+	delivery: {
+		'odbior':{label:'Odbiór osobisty — Cukiernia / Recepcja Dworku Komorno',price:0,address:false},
+		'dostawa':{label:'Dostawa prosto do domu',price:25,address:true},
+		'express':{label:'Dostawa ekspresowa 24h (po telefonicznym potwierdzeniu)',price:49,address:true}
+	},
+	min_lead_days:3, min_lead_days_express:1
+};
+
+var STATUSES = {
+	'new':'Nowe','confirmed':'Potwierdzone','production':'W realizacji',
+	'ready':'Gotowe do odbioru','delivered':'Zrealizowane','cancelled':'Anulowane'
+};
+
+/* ===== Router ===== */
+function show(page){
+	document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('is-visible'); });
+	var el = document.getElementById('page-'+page);
+	(el || document.getElementById('page-home')).classList.add('is-visible');
+	document.querySelectorAll('.main-nav a').forEach(function(a){
+		a.classList.toggle('is-active', a.dataset.nav === page);
+	});
+	if (page === 'crm') renderCRM();
+	window.scrollTo(0,0);
+}
+document.addEventListener('click', function(e){
+	var nav = e.target.closest('[data-nav]');
+	if (nav){ e.preventDefault(); show(nav.dataset.nav); }
+});
+
+/* ===== Budowa opcji kreatora ===== */
+function option(name, value, html, opts){
+	opts = opts || {};
+	return '<label class="dwk-cb-option'+(opts.wide?' dwk-cb-option-wide':'')+'"'+
+		(opts.shape?' data-shape="'+opts.shape+'" hidden':'')+'>'+
+		'<input type="'+(opts.checkbox?'checkbox':'radio')+'" name="'+name+'" value="'+value+'"'+(opts.checked?' checked':'')+'>'+
+		'<span class="dwk-cb-option-box">'+html+'</span></label>';
+}
+var el = function(id){ return document.getElementById(id); };
+
+el('cb-shapes').innerHTML = Object.keys(CFG.shapes).map(function(k){
+	return option('shape', k, '<span class="shape-icon shape-'+k+'"></span>'+CFG.shapes[k].label);
+}).join('');
+
+el('cb-sizes').innerHTML = Object.keys(CFG.sizes).map(function(k){
+	var s = CFG.sizes[k];
+	return option('size', k, '<strong>'+s.label+'</strong><small>waga ok. '+s.weight+' · ok. '+s.portions+' porcji</small><em>'+s.price+' zł</em>', {shape:s.shape});
+}).join('');
+
+el('cb-flavors').innerHTML = Object.keys(CFG.flavors).map(function(k){
+	var f = CFG.flavors[k];
+	return option('flavor', k, '<strong>'+f.label+(f.surcharge?' <em>+'+f.surcharge+' zł</em>':'')+'</strong><small>'+f.desc+'</small>', {wide:true});
+}).join('');
+
+el('cb-finishes').innerHTML = Object.keys(CFG.finishes).map(function(k,i){
+	var f = CFG.finishes[k];
+	return option('finish', k, '<strong>'+f.label+(f.surcharge?' <em>+'+f.surcharge+' zł</em>':'')+'</strong>', {wide:true, checked:i===0});
+}).join('');
+
+el('cb-extras').innerHTML = Object.keys(CFG.extras).map(function(k){
+	var x = CFG.extras[k];
+	return option('extras', k, '<strong>'+x.label+' <em>+'+x.price+' zł</em></strong>', {wide:true, checkbox:true});
+}).join('');
+
+el('cb-delivery').innerHTML = Object.keys(CFG.delivery).map(function(k,i){
+	var d = CFG.delivery[k];
+	return option('delivery', k, '<strong>'+d.label+' <em>'+(d.price?'+'+d.price+' zł':'gratis')+'</em></strong>', {wide:true, checked:i===0});
+}).join('');
+
+el('cb-occasion').innerHTML = Object.keys(CFG.occasions).map(function(k){
+	return '<option value="'+k+'">'+CFG.occasions[k]+'</option>';
+}).join('');
+
+var form = el('cake-builder');
+function val(name){
+	var i = form.querySelector('input[name="'+name+'"]:checked');
+	return i ? i.value : null;
+}
+
+/* ===== Rozmiary wg ksztaltu ===== */
+function refreshSizes(){
+	var shape = val('shape');
+	form.querySelectorAll('#cb-sizes .dwk-cb-option').forEach(function(o){
+		var visible = shape && o.dataset.shape === shape;
+		o.hidden = !visible;
+		var r = o.querySelector('input');
+		if (!visible && r.checked) r.checked = false;
+	});
+}
+
+/* ===== Termin ===== */
+function refreshMinDate(){
+	var days = val('delivery') === 'express' ? CFG.min_lead_days_express : CFG.min_lead_days;
+	var min = new Date(); min.setDate(min.getDate()+days);
+	var iso = min.toISOString().slice(0,10);
+	el('cb-date').min = iso;
+	if (el('cb-date').value && el('cb-date').value < iso) el('cb-date').value = iso;
+	el('cb-date-hint').textContent = 'Najwcześniejszy termin: '+iso+' ('+days+' dni od dziś).';
+}
+
+/* ===== Adres ===== */
+function refreshAddress(){
+	var d = val('delivery');
+	var needs = d && CFG.delivery[d].address;
+	el('cb-address-wrap').hidden = !needs;
+	el('cb-address').required = !!needs;
+}
+
+/* ===== Cena ===== */
+function refreshPrice(){
+	var lines = [], total = 0;
+	var size = val('size');
+	if (size){
+		var s = CFG.sizes[size];
+		lines.push(['Tort '+CFG.shapes[val('shape')].label.toLowerCase()+' '+s.label+' (waga ok. '+s.weight+', ~'+s.portions+' porcji)', s.price]);
+		total += s.price;
+	}
+	var flavor = val('flavor');
+	if (flavor){ lines.push(['Smak: '+CFG.flavors[flavor].label, CFG.flavors[flavor].surcharge]); total += CFG.flavors[flavor].surcharge; }
+	var finish = val('finish');
+	if (finish){ lines.push(['Wykończenie: '+CFG.finishes[finish].label, CFG.finishes[finish].surcharge]); total += CFG.finishes[finish].surcharge; }
+	form.querySelectorAll('input[name="extras"]:checked').forEach(function(b){
+		lines.push([CFG.extras[b.value].label, CFG.extras[b.value].price]); total += CFG.extras[b.value].price;
+	});
+	if (photoLoaded){ lines.push(['Własna grafika (wydruk na opłatku)', CFG.photo_price]); total += CFG.photo_price; }
+	var d = val('delivery');
+	if (d){ lines.push([CFG.delivery[d].label, CFG.delivery[d].price]); total += CFG.delivery[d].price; }
+
+	el('cb-summary-lines').innerHTML = lines.map(function(l){
+		return '<p class="cb-summary-line">'+l[0]+' — '+(l[1]>0 ? l[1]+' zł' : 'w cenie')+'</p>';
+	}).join('');
+	el('cb-total').textContent = total+' zł';
+	return total;
+}
+
+/* ===== Edytor grafiki ===== */
+var photoLoaded = false, pos = {x:0,y:0}, dragging = null;
+var stage = el('cb-photo-stage'), preview = el('cb-photo-preview');
+
+function applyTransform(){
+	preview.style.transform = 'translate(-50%,-50%) translate('+pos.x+'px,'+pos.y+'px) scale('+el('cb-photo-scale').value+') rotate('+el('cb-photo-rotate').value+'deg)';
+}
+el('cb-photo').addEventListener('change', function(){
+	var f = this.files[0];
+	if (!f) return;
+	if (f.size > 8*1024*1024){ message('Plik jest zbyt duży (maks. 8 MB).', true); this.value=''; return; }
+	if (['image/jpeg','image/png','image/webp'].indexOf(f.type) === -1){ message('Dozwolone formaty: JPG, PNG, WEBP.', true); this.value=''; return; }
+	photoLoaded = true;
+	preview.src = URL.createObjectURL(f);
+	el('cb-photo-editor').hidden = false;
+	pos = {x:0,y:0}; el('cb-photo-scale').value = '1'; el('cb-photo-rotate').value = '0';
+	applyTransform(); refreshPrice();
+});
+el('cb-photo-remove').addEventListener('click', function(){
+	photoLoaded = false; el('cb-photo').value = ''; preview.src = '';
+	el('cb-photo-editor').hidden = true; refreshPrice();
+});
+el('cb-photo-scale').addEventListener('input', applyTransform);
+el('cb-photo-rotate').addEventListener('input', applyTransform);
+function pt(e){ var p = e.touches ? e.touches[0] : e; return {x:p.clientX, y:p.clientY}; }
+stage.addEventListener('mousedown', function(e){ var p = pt(e); dragging = {x:p.x-pos.x, y:p.y-pos.y}; e.preventDefault(); });
+stage.addEventListener('touchstart', function(e){ var p = pt(e); dragging = {x:p.x-pos.x, y:p.y-pos.y}; e.preventDefault(); }, {passive:false});
+window.addEventListener('mousemove', function(e){ if(!dragging) return; var p = pt(e); pos = {x:p.x-dragging.x, y:p.y-dragging.y}; applyTransform(); });
+window.addEventListener('touchmove', function(e){ if(!dragging) return; var p = pt(e); pos = {x:p.x-dragging.x, y:p.y-dragging.y}; applyTransform(); e.preventDefault(); }, {passive:false});
+window.addEventListener('mouseup', function(){ dragging = null; });
+window.addEventListener('touchend', function(){ dragging = null; });
+
+/* ===== Komunikaty i wysylka ===== */
+function message(text, isError){
+	var m = el('cb-message');
+	m.textContent = text;
+	m.className = 'cb-message '+(isError ? 'is-error' : 'is-success');
+}
+
+form.addEventListener('submit', function(e){
+	e.preventDefault();
+	var missing = [];
+	if (!val('shape')) missing.push('kształt');
+	if (!val('size')) missing.push('rozmiar');
+	if (!val('flavor')) missing.push('smak');
+	if (!el('cb-date').value || el('cb-date').value < el('cb-date').min) missing.push('termin (min. wyprzedzenie)');
+	if (el('cb-address').required && !el('cb-address').value.trim()) missing.push('adres dostawy');
+	if (!el('cb-name').value.trim()) missing.push('imię i nazwisko');
+	if (!el('cb-phone').value.trim()) missing.push('telefon');
+	if (!el('cb-email').value.trim() || el('cb-email').value.indexOf('@') < 1) missing.push('e-mail');
+	if (!el('cb-consent').checked) missing.push('zgoda na regulamin');
+	if (missing.length){ message('Uzupełnij: '+missing.join(', ')+'.', true); return; }
+
+	var total = refreshPrice();
+	var orders = loadOrders();
+	var id = orders.reduce(function(m,o){ return Math.max(m,o.id); }, 1000) + 1;
+	orders.push({
+		id:id, created:new Date().toISOString().slice(0,10),
+		date: el('cb-date').value, status:'new',
+		name: el('cb-name').value.trim(), phone: el('cb-phone').value.trim(), email: el('cb-email').value.trim(),
+		shape: val('shape'), size: val('size'), flavor: val('flavor'), finish: val('finish'),
+		extras: Array.prototype.map.call(form.querySelectorAll('input[name="extras"]:checked'), function(b){ return b.value; }),
+		inscription: el('cb-inscription').value.trim(), occasion: el('cb-occasion').value,
+		notes: el('cb-notes').value.trim(), delivery: val('delivery'), address: el('cb-address').value.trim(),
+		photo: photoLoaded, total: total, demo:true
+	});
+	saveOrders(orders);
+	message('Dziękujemy! Twoje zamówienie nr '+id+' zostało przyjęte (demo). Zobacz je w zakładce „Demo CRM”. W wersji produkcyjnej otrzymasz e-mail z potwierdzeniem.', false);
+	form.reset();
+	el('cb-photo-remove').click();
+	refreshSizes(); refreshAddress(); refreshMinDate(); refreshPrice();
+});
+
+form.addEventListener('change', function(e){
+	if (e.target.name === 'shape') refreshSizes();
+	if (e.target.name === 'delivery'){ refreshAddress(); refreshMinDate(); }
+	refreshPrice();
+});
+
+/* ===== Demo CRM ===== */
+var SEED = [
+	{id:1001, created:'2026-06-02', date:'2026-06-14', status:'production', name:'Anna Przykładowa', phone:'600 100 200', email:'anna@example.com', shape:'okragly', size:'okr-26', flavor:'smietankowo-malinowy', finish:'tynk', extras:['owoce','kwiaty'], inscription:'Sto lat, Marysiu!', occasion:'urodziny', notes:'', delivery:'dostawa', address:'ul. Kwiatowa 5, Kędzierzyn-Koźle', photo:true, total:355, demo:false},
+	{id:1002, created:'2026-06-05', date:'2026-06-20', status:'confirmed', name:'Jan Testowy', phone:'600 300 400', email:'jan@example.com', shape:'prostokatny', size:'pro-3040', flavor:'czekoladowy', finish:'polewa', extras:['figurka'], inscription:'', occasion:'komunia', notes:'Figurka komunijna', delivery:'odbior', address:'', photo:false, total:460, demo:false},
+	{id:1003, created:'2026-05-28', date:'2026-06-06', status:'delivered', name:'Firma Wzorcowa Sp. z o.o.', phone:'77 400 00 00', email:'biuro@example.com', shape:'kwadratowy', size:'kwa-2525', flavor:'orzechowy', finish:'masa-cukrowa', extras:['zloto'], inscription:'10 lat razem!', occasion:'firmowa', notes:'Logo firmy na opłatku', delivery:'express', address:'Rynek 1, Opole', photo:true, total:409, demo:false}
+];
+function loadOrders(){
+	try {
+		var raw = localStorage.getItem('dwkDemoOrders');
+		if (raw) return JSON.parse(raw);
+	} catch(err){}
+	return SEED.slice();
+}
+function saveOrders(orders){
+	try { localStorage.setItem('dwkDemoOrders', JSON.stringify(orders)); } catch(err){}
+}
+
+function renderCRM(){
+	var orders = loadOrders();
+	var month = new Date().toISOString().slice(0,7);
+	var revTotal = 0, revMonth = 0, cntMonth = 0;
+	var byStatus = {};
+	Object.keys(STATUSES).forEach(function(s){ byStatus[s] = 0; });
+	var emails = {};
+	orders.forEach(function(o){
+		byStatus[o.status] = (byStatus[o.status]||0)+1;
+		emails[o.email] = true;
+		if (o.status !== 'cancelled'){
+			revTotal += o.total;
+			if (o.created.slice(0,7) === month){ revMonth += o.total; cntMonth++; }
+		}
+	});
+
+	el('crm-cards').innerHTML =
+		'<div class="crm-card"><span class="crm-card-value">'+revMonth.toFixed(2)+' zł</span><span class="crm-card-label">Przychód w tym miesiącu</span></div>'+
+		'<div class="crm-card"><span class="crm-card-value">'+cntMonth+'</span><span class="crm-card-label">Zamówienia w tym miesiącu</span></div>'+
+		'<div class="crm-card"><span class="crm-card-value">'+revTotal.toFixed(2)+' zł</span><span class="crm-card-label">Przychód łącznie</span></div>'+
+		'<div class="crm-card"><span class="crm-card-value">'+Object.keys(emails).length+'</span><span class="crm-card-label">Klienci w bazie</span></div>';
+
+	el('crm-pipeline').innerHTML = Object.keys(STATUSES).map(function(s){
+		return '<div class="crm-step"><strong>'+byStatus[s]+'</strong>'+STATUSES[s]+'</div>';
+	}).join('');
+
+	el('crm-orders').innerHTML = orders.slice().sort(function(a,b){ return b.id - a.id; }).map(function(o){
+		var cake = CFG.shapes[o.shape].label+' · '+CFG.sizes[o.size].label+' · '+CFG.flavors[o.flavor].label+
+			(o.photo ? ' · własna grafika' : '')+(o.inscription ? ' · „'+o.inscription+'”' : '');
+		var statusSelect = '<select data-order="'+o.id+'" class="crm-status">'+Object.keys(STATUSES).map(function(s){
+			return '<option value="'+s+'"'+(s===o.status?' selected':'')+'>'+STATUSES[s]+'</option>';
+		}).join('')+'</select>';
+		return '<tr><td>#'+o.id+(o.demo?' <span class="badge">test</span>':'')+'</td>'+
+			'<td><strong>'+o.date+'</strong></td>'+
+			'<td>'+o.name+'<br><small>'+o.phone+' · '+o.email+'</small></td>'+
+			'<td>'+cake+'</td>'+
+			'<td>'+CFG.delivery[o.delivery].label.split(' — ')[0].split(' (')[0]+(o.address?'<br><small>'+o.address+'</small>':'')+'</td>'+
+			'<td>'+o.total.toFixed(2)+' zł</td>'+
+			'<td><span class="badge badge-'+o.status+'">'+STATUSES[o.status]+'</span><br>'+statusSelect+'</td></tr>';
+	}).join('') || '<tr><td colspan="7">Brak zamówień.</td></tr>';
+}
+
+document.addEventListener('change', function(e){
+	if (!e.target.classList.contains('crm-status')) return;
+	var orders = loadOrders();
+	var order = orders.find(function(o){ return o.id === parseInt(e.target.dataset.order, 10); });
+	if (order){ order.status = e.target.value; saveOrders(orders); renderCRM(); }
+});
+el('crm-reset').addEventListener('click', function(){
+	try { localStorage.removeItem('dwkDemoOrders'); } catch(err){}
+	renderCRM();
+});
+
+/* ===== Start ===== */
+refreshSizes(); refreshAddress(); refreshMinDate(); refreshPrice();
+show('home');
+})();
+</script>
+</body>
+</html>
