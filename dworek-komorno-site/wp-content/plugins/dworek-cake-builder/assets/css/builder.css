@@ -1,0 +1,150 @@
+/* Dworek Cake Builder - style kreatora (dziedziczy palete motywu). */
+
+.dwk-cb { max-width: 860px; margin: 0 auto; }
+
+.dwk-cb-step {
+	border: 1px solid var(--dwk-cream-dark, #f1e9da);
+	background: var(--dwk-white, #fff);
+	border-top: 3px solid var(--dwk-gold, #b08d57);
+	padding: 24px 26px 28px;
+	margin: 0 0 26px;
+}
+.dwk-cb-step legend {
+	font-family: var(--dwk-font-serif, Georgia, serif);
+	font-size: 22px;
+	padding: 0 10px;
+}
+.dwk-cb-step-num {
+	display: inline-flex;
+	width: 32px; height: 32px;
+	align-items: center; justify-content: center;
+	border-radius: 50%;
+	border: 1px solid var(--dwk-gold, #b08d57);
+	color: var(--dwk-gold-dark, #94703c);
+	font-size: 16px;
+	margin-right: 8px;
+}
+.dwk-cb-req { color: var(--dwk-burgundy, #7a2e2e); }
+.dwk-cb-optional { font-size: 14px; color: #8a7a68; font-family: var(--dwk-font-sans, sans-serif); }
+.dwk-cb-hint { font-size: 14px; color: #8a7a68; margin: 4px 0 14px; }
+
+/* Opcje wyboru */
+.dwk-cb-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.dwk-cb-option { display: block; }
+.dwk-cb-option-wide { grid-column: 1 / -1; }
+.dwk-cb-option input { position: absolute; opacity: 0; }
+.dwk-cb-option-box {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	border: 1px solid var(--dwk-cream-dark, #e7dcc8);
+	border-radius: 3px;
+	padding: 14px 16px;
+	cursor: pointer;
+	transition: border-color .15s, box-shadow .15s;
+	text-align: center;
+	height: 100%;
+}
+.dwk-cb-option-wide .dwk-cb-option-box { text-align: left; }
+.dwk-cb-option input:checked + .dwk-cb-option-box {
+	border-color: var(--dwk-gold, #b08d57);
+	box-shadow: 0 0 0 2px var(--dwk-gold, #b08d57);
+	background: var(--dwk-cream, #faf6ef);
+}
+.dwk-cb-option input:focus-visible + .dwk-cb-option-box { outline: 2px dashed var(--dwk-burgundy, #7a2e2e); }
+.dwk-cb-option-box small { color: #8a7a68; }
+.dwk-cb-option-box em { font-style: normal; color: var(--dwk-burgundy, #7a2e2e); font-weight: 700; }
+
+/* Ikony ksztaltow */
+.dwk-cb-shape-icon { display: block; margin: 0 auto 8px; width: 44px; height: 44px; border: 2px solid var(--dwk-gold-dark, #94703c); }
+.dwk-cb-shape-okragly { border-radius: 50%; }
+.dwk-cb-shape-prostokatny { width: 56px; height: 38px; }
+.dwk-cb-shape-kwadratowy { }
+.dwk-cb-shape-serce {
+	border: none;
+	background: var(--dwk-gold-dark, #94703c);
+	clip-path: path('M22 42 C-8 22 6 -4 22 12 C38 -4 52 22 22 42 Z');
+}
+
+/* Pola formularza */
+.dwk-cb-field { margin: 0 0 16px; }
+.dwk-cb-field label { display: block; font-weight: 700; margin-bottom: 6px; }
+.dwk-cb input[type="text"],
+.dwk-cb input[type="tel"],
+.dwk-cb input[type="email"],
+.dwk-cb input[type="date"],
+.dwk-cb select,
+.dwk-cb textarea {
+	width: 100%;
+	padding: 11px 13px;
+	border: 1px solid var(--dwk-cream-dark, #e7dcc8);
+	border-radius: 3px;
+	font: inherit;
+	background: #fff;
+}
+.dwk-cb-fields-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 18px; }
+.dwk-cb-consent label { font-weight: 400; }
+
+/* Edytor grafiki */
+.dwk-cb-photo-editor { margin-top: 18px; display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.dwk-cb-photo-stage {
+	width: 280px; height: 280px;
+	border-radius: 50%;
+	border: 3px dashed var(--dwk-gold, #b08d57);
+	overflow: hidden;
+	position: relative;
+	background: var(--dwk-cream, #faf6ef);
+	cursor: grab;
+	touch-action: none;
+	flex: none;
+}
+.dwk-cb-photo-stage:active { cursor: grabbing; }
+#dwk-cb-photo-preview {
+	position: absolute;
+	top: 50%; left: 50%;
+	max-width: none;
+	width: 100%;
+	transform: translate(-50%, -50%);
+	user-select: none;
+	pointer-events: none;
+}
+.dwk-cb-photo-controls { flex: 1; min-width: 220px; }
+.dwk-cb-photo-controls label { display: block; font-weight: 700; margin-bottom: 14px; }
+.dwk-cb-photo-controls input[type="range"] { width: 100%; }
+.dwk-cb-btn-link { background: none; border: none; color: var(--dwk-burgundy, #7a2e2e); text-decoration: underline; cursor: pointer; padding: 0; font: inherit; }
+
+/* Podsumowanie */
+.dwk-cb-summary {
+	background: var(--dwk-ink, #3a2a1d);
+	color: var(--dwk-cream, #faf6ef);
+	padding: 28px 30px;
+	border-radius: 3px;
+}
+.dwk-cb-summary-line { margin: 0 0 6px; font-size: 15px; opacity: .9; }
+.dwk-cb-total { font-family: var(--dwk-font-serif, Georgia, serif); font-size: 26px; margin: 14px 0 4px; }
+.dwk-cb-total strong { color: var(--dwk-gold, #b08d57); }
+.dwk-cb-summary .dwk-cb-hint { color: rgba(250, 246, 239, .65); }
+.dwk-cb-submit {
+	display: inline-block;
+	background: var(--dwk-gold, #b08d57);
+	color: #fff;
+	border: none;
+	padding: 15px 42px;
+	font-weight: 700;
+	font-size: 15px;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	cursor: pointer;
+	border-radius: 2px;
+	margin-top: 10px;
+}
+.dwk-cb-submit:hover { background: var(--dwk-gold-dark, #94703c); }
+.dwk-cb-submit:disabled { opacity: .6; cursor: wait; }
+.dwk-cb-message { margin-top: 16px; font-weight: 700; }
+.dwk-cb-message.is-error { color: #e8a0a0; }
+.dwk-cb-message.is-success { color: #bfe3b0; }
+
+@media (max-width: 600px) {
+	.dwk-cb-step { padding: 18px 16px 22px; }
+	.dwk-cb-photo-stage { width: 220px; height: 220px; }
+}

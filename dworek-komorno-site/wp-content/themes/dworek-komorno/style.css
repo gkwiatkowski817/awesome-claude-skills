@@ -1,0 +1,15 @@
+/*
+Theme Name: Dworek Komorno Cukiernia
+Theme URI: https://www.dworekkomorno.eu/
+Author: Dworek Komorno
+Description: Elegancki motyw dla cukierni internetowej Dworek Komorno - zamawianie tortów online, konfigurator tortów, CRM i zarządzanie sprzedażą. Stylistyka dworska: kremowe tła, złote akcenty, klasyczna typografia szeryfowa.
+Version: 1.0.0
+Requires at least: 6.0
+Requires PHP: 7.4
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: dworek-komorno
+Tags: e-commerce, food-and-drink, custom-colors, custom-logo, custom-menu
+*/
+
+/* Style wlasciwe znajduja sie w assets/css/main.css (ladowane przez functions.php). */

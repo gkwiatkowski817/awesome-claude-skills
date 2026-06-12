@@ -1,0 +1,248 @@
+/* =========================================================
+   Dworek Komorno Cukiernia - style motywu
+   Paleta dworska: krem / ciemny braz / zloto / bordo
+   ========================================================= */
+
+:root {
+	--dwk-cream: #faf6ef;
+	--dwk-cream-dark: #f1e9da;
+	--dwk-ink: #3a2a1d;
+	--dwk-gold: #b08d57;
+	--dwk-gold-dark: #94703c;
+	--dwk-burgundy: #7a2e2e;
+	--dwk-white: #ffffff;
+	--dwk-font-serif: "Playfair Display", Georgia, serif;
+	--dwk-font-sans: "Lato", "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--dwk-cream);
+	color: var(--dwk-ink);
+	font-family: var(--dwk-font-sans);
+	font-size: 17px;
+	line-height: 1.65;
+}
+
+h1, h2, h3, h4 {
+	font-family: var(--dwk-font-serif);
+	font-weight: 600;
+	line-height: 1.25;
+	color: var(--dwk-ink);
+}
+
+a { color: var(--dwk-gold-dark); text-decoration: none; }
+a:hover { color: var(--dwk-burgundy); }
+
+img { max-width: 100%; height: auto; }
+
+.container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+.container-narrow { max-width: 860px; }
+
+.screen-reader-text {
+	position: absolute !important;
+	width: 1px; height: 1px;
+	overflow: hidden;
+	clip: rect(1px, 1px, 1px, 1px);
+}
+
+/* ---------- Przyciski ---------- */
+.btn {
+	display: inline-block;
+	padding: 13px 30px;
+	border-radius: 2px;
+	font-family: var(--dwk-font-sans);
+	font-weight: 700;
+	font-size: 14px;
+	letter-spacing: 1.5px;
+	text-transform: uppercase;
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: background .2s, color .2s, border-color .2s;
+}
+.btn-gold { background: var(--dwk-gold); color: var(--dwk-white); }
+.btn-gold:hover { background: var(--dwk-gold-dark); color: var(--dwk-white); }
+.btn-burgundy { background: var(--dwk-burgundy); color: var(--dwk-white); }
+.btn-burgundy:hover { background: #5e2222; color: var(--dwk-white); }
+.btn-outline { background: transparent; color: var(--dwk-white); border-color: var(--dwk-white); }
+.btn-outline:hover { background: var(--dwk-white); color: var(--dwk-ink); }
+
+/* ---------- Pasek gorny ---------- */
+.topbar {
+	background: var(--dwk-ink);
+	color: var(--dwk-cream);
+	font-size: 13px;
+	padding: 6px 0;
+}
+.topbar a { color: var(--dwk-cream); }
+.topbar a:hover { color: var(--dwk-gold); }
+.topbar-inner { display: flex; gap: 24px; flex-wrap: wrap; }
+.topbar-hours { margin-left: auto; opacity: .85; }
+
+/* ---------- Naglowek ---------- */
+.site-header {
+	background: var(--dwk-white);
+	border-bottom: 3px double var(--dwk-gold);
+	position: sticky;
+	top: 0;
+	z-index: 100;
+}
+.header-inner {
+	display: flex;
+	align-items: center;
+	gap: 28px;
+	padding-top: 14px;
+	padding-bottom: 14px;
+}
+.site-title { display: flex; flex-direction: column; }
+.site-title-main {
+	font-family: var(--dwk-font-serif);
+	font-size: 26px;
+	font-weight: 700;
+	color: var(--dwk-ink);
+}
+.site-title-tagline {
+	font-size: 12px;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	color: var(--dwk-gold-dark);
+}
+.main-nav { margin-left: auto; }
+.main-nav ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex-wrap: wrap; }
+.main-nav li a {
+	display: block;
+	padding: 8px 13px;
+	color: var(--dwk-ink);
+	font-size: 14px;
+	letter-spacing: .5px;
+	text-transform: uppercase;
+	border-bottom: 2px solid transparent;
+}
+.main-nav li a:hover,
+.main-nav li.current-menu-item > a {
+	color: var(--dwk-burgundy);
+	border-bottom-color: var(--dwk-gold);
+}
+.header-cta { white-space: nowrap; }
+
+.menu-toggle { display: none; background: none; border: 1px solid var(--dwk-gold); padding: 8px 10px; cursor: pointer; }
+.menu-toggle-bar { display: block; width: 22px; height: 2px; background: var(--dwk-ink); margin: 4px 0; }
+
+/* ---------- Hero ---------- */
+.hero {
+	position: relative;
+	background: var(--dwk-ink) center/cover no-repeat;
+	color: var(--dwk-white);
+	text-align: center;
+	padding: 110px 0 120px;
+}
+.hero-overlay { position: absolute; inset: 0; background: rgba(40, 27, 16, .55); }
+.hero-inner { position: relative; }
+.hero-eyebrow {
+	letter-spacing: 4px;
+	text-transform: uppercase;
+	font-size: 13px;
+	color: var(--dwk-gold);
+	margin: 0 0 10px;
+}
+.hero-title {
+	font-size: clamp(34px, 6vw, 56px);
+	color: var(--dwk-white);
+	margin: 0 0 18px;
+}
+.hero-subtitle { max-width: 640px; margin: 0 auto 32px; font-size: 19px; font-weight: 300; }
+.hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- Sekcje ---------- */
+.section { padding: 70px 0; }
+.section-alt { background: var(--dwk-cream-dark); }
+.section-title {
+	text-align: center;
+	font-size: 34px;
+	margin: 0 0 14px;
+	position: relative;
+	padding-bottom: 18px;
+}
+.section-title::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: 0;
+	transform: translateX(-50%);
+	width: 70px;
+	height: 2px;
+	background: var(--dwk-gold);
+}
+.section-title-left { text-align: left; }
+.section-title-left::after { left: 0; transform: none; }
+.section .section-title { margin-bottom: 42px; }
+
+.steps-grid, .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
+
+.step-card, .offer-card, .news-card {
+	background: var(--dwk-white);
+	border: 1px solid var(--dwk-cream-dark);
+	border-top: 3px solid var(--dwk-gold);
+	padding: 30px 26px;
+	text-align: center;
+	color: var(--dwk-ink);
+	transition: box-shadow .2s, transform .2s;
+}
+.offer-card:hover { box-shadow: 0 8px 24px rgba(58, 42, 29, .12); transform: translateY(-3px); color: var(--dwk-ink); }
+.step-num {
+	display: inline-flex;
+	width: 46px; height: 46px;
+	align-items: center; justify-content: center;
+	border-radius: 50%;
+	border: 1px solid var(--dwk-gold);
+	color: var(--dwk-gold-dark);
+	font-family: var(--dwk-font-serif);
+	font-size: 22px;
+	margin-bottom: 12px;
+}
+.news-card { text-align: left; padding: 0 0 20px; overflow: hidden; }
+.news-card img { display: block; width: 100%; }
+.news-card h3, .news-card p { padding: 0 22px; }
+
+/* ---------- Tresc ---------- */
+.page-title { font-size: 38px; margin: 0 0 24px; }
+.post-meta { color: var(--dwk-gold-dark); font-size: 14px; }
+.entry-content h2 { margin-top: 40px; }
+.post-list-item { border-bottom: 1px solid var(--dwk-cream-dark); padding-bottom: 28px; margin-bottom: 28px; }
+
+/* ---------- Stopka ---------- */
+.site-footer { background: var(--dwk-ink); color: var(--dwk-cream); margin-top: 40px; }
+.site-footer a { color: var(--dwk-gold); }
+.site-footer a:hover { color: var(--dwk-white); }
+.footer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; padding: 56px 20px 40px; }
+.footer-widget-title {
+	color: var(--dwk-white);
+	font-size: 18px;
+	margin: 0 0 14px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--dwk-gold);
+}
+.site-footer ul { list-style: none; margin: 0; padding: 0; }
+.site-footer li { margin-bottom: 8px; }
+.footer-bottom { border-top: 1px solid rgba(176, 141, 87, .35); padding: 16px 0; font-size: 13px; text-align: center; }
+.footer-bottom p { margin: 0; }
+
+/* ---------- Responsywnosc ---------- */
+@media (max-width: 960px) {
+	.steps-grid, .cards-grid { grid-template-columns: 1fr; }
+	.two-col { grid-template-columns: 1fr; }
+	.footer-grid { grid-template-columns: 1fr 1fr; }
+	.header-cta { display: none; }
+	.menu-toggle { display: block; margin-left: auto; }
+	.main-nav { display: none; width: 100%; margin: 0; }
+	.main-nav.is-open { display: block; }
+	.main-nav ul { flex-direction: column; }
+	.header-inner { flex-wrap: wrap; }
+}
+@media (max-width: 560px) {
+	.footer-grid { grid-template-columns: 1fr; }
+	.topbar-hours { display: none; }
+}

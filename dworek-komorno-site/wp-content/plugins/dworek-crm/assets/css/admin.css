@@ -1,0 +1,51 @@
+/* Dworek CRM - style panelu administracyjnego. */
+
+.dwk-crm-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 16px;
+	margin: 20px 0 30px;
+}
+.dwk-crm-card {
+	background: #fff;
+	border: 1px solid #e2d9c8;
+	border-top: 3px solid #b08d57;
+	padding: 20px 22px;
+	display: flex;
+	flex-direction: column;
+}
+.dwk-crm-card-value { font-size: 28px; font-weight: 700; color: #3a2a1d; }
+.dwk-crm-card-label { color: #8a7a68; margin-top: 4px; }
+
+.dwk-crm-pipeline { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 30px; }
+.dwk-crm-pipeline-step {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 130px;
+	padding: 14px 18px;
+	background: #fff;
+	border: 1px solid #e2d9c8;
+	text-decoration: none;
+	color: #3a2a1d;
+}
+.dwk-crm-pipeline-step:hover { border-color: #b08d57; }
+.dwk-crm-pipeline-count { font-size: 24px; font-weight: 700; }
+
+.dwk-crm-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 600;
+	background: #eee;
+	color: #3a2a1d;
+}
+.dwk-crm-status-dwk-new .dwk-crm-pipeline-count, .dwk-crm-badge.dwk-crm-status-dwk-new { background: #fff3cd; }
+.dwk-crm-badge.dwk-crm-status-dwk-confirmed { background: #cfe2ff; }
+.dwk-crm-badge.dwk-crm-status-dwk-production { background: #e2d9f3; }
+.dwk-crm-badge.dwk-crm-status-dwk-ready { background: #d1e7dd; }
+.dwk-crm-badge.dwk-crm-status-dwk-delivered { background: #d1e7dd; color: #0f5132; }
+.dwk-crm-badge.dwk-crm-status-dwk-cancelled { background: #f8d7da; color: #842029; }
+
+.dwk-crm-order-table th { text-align: left; }
