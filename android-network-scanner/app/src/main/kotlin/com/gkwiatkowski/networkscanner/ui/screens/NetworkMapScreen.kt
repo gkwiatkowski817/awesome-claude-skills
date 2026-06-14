@@ -1,7 +1,9 @@
 package com.gkwiatkowski.networkscanner.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -374,5 +376,3 @@ private fun SubnetDeviceRow(device: Device) {
     }
 }
 
-private fun Modifier.clickable(onClick: () -> Unit): Modifier =
-    this.then(androidx.compose.foundation.clickable(onClick = onClick))

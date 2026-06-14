@@ -3,6 +3,7 @@ package com.gkwiatkowski.networkscanner.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -283,5 +284,3 @@ private fun formatDuration(millis: Long): String {
     return if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
 }
 
-private fun Modifier.clickable(onClick: () -> Unit): Modifier =
-    this.then(androidx.compose.foundation.clickable(onClick = onClick))
