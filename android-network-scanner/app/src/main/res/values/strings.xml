@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Network Scanner</string>
+    <string name="notification_channel_name">Network Scanner</string>
+    <string name="notification_channel_description">Background network scanning service</string>
+    <string name="notification_title">Network Scanner Active</string>
+    <string name="notification_text">Scanning every 10 minutes</string>
+</resources>

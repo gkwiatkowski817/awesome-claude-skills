@@ -1,0 +1,5 @@
+-keep class com.gkwiatkowski.networkscanner.data.** { *; }
+-keep class com.gkwiatkowski.networkscanner.scanner.** { *; }
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-dontwarn javax.naming.**
