@@ -13,6 +13,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
@@ -21,6 +23,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
 data class SubnetInfo(
@@ -117,28 +120,41 @@ class NetworkScanner(private val context: Context) {
         devices
     }
 
+    /**
+     * Host discovery modelled on well-behaved LAN tools (e.g. Advanced IP Scanner):
+     * a rate-limited ICMP-style "ping sweep" plus the OS ARP cache, instead of a
+     * horizontal TCP port sweep. Hitting every address on many ports in parallel is
+     * the reconnaissance pattern that IDS/firewalls flag; a paced liveness check is
+     * ordinary network behaviour and is far lower impact. Service ports are only
+     * touched on hosts already confirmed alive, never on the whole range.
+     */
     suspend fun scanSubnet(subnet: SubnetInfo, onProgress: (Int, Int) -> Unit = { _, _ -> }): List<Device> =
         withContext(Dispatchers.IO) {
             val parts = subnet.ipAddress.split(".")
             if (parts.size != 4) return@withContext emptyList()
             val base = "${parts[0]}.${parts[1]}.${parts[2]}"
             val hostRange = 1..254
-            var scanned = 0
+            val total = hostRange.count()
+            val scanned = AtomicInteger(0)
 
             val arpDevices = readArpTable().associateBy { it.ipAddress }
+
+            // Cap concurrency so probes leave the device in small batches rather than
+            // a single burst across the whole subnet.
+            val gate = Semaphore(DISCOVERY_CONCURRENCY)
 
             val jobs = hostRange.map { i ->
                 async {
                     val ip = "$base.$i"
-                    onProgress(++scanned, hostRange.count())
+                    gate.withPermit {
+                        val alive = arpDevices.containsKey(ip) || isHostAlive(ip)
+                        onProgress(scanned.incrementAndGet(), total)
+                        if (!alive) return@async null
 
-                    if (arpDevices.containsKey(ip)) {
-                        return@async arpDevices[ip]
-                    }
-
-                    if (probeHost(ip)) {
-                        val hostname = resolveHostname(ip)
+                        // A successful ICMP probe primes the kernel ARP cache, so a
+                        // re-read now usually yields the MAC for vendor lookup.
                         val mac = arpDevices[ip]?.macAddress ?: getMacFromArp(ip)
+                        val hostname = resolveHostname(ip)
                         Device(
                             id = mac ?: ip,
                             name = hostname ?: ip,
@@ -146,27 +162,37 @@ class NetworkScanner(private val context: Context) {
                             macAddress = mac,
                             type = DeviceType.NETWORK_HOST,
                             manufacturer = mac?.let { lookupOui(it) },
-                            subnet = extractSubnet(ip)
+                            subnet = extractSubnet(ip),
+                            services = probeAliveHostServices(ip)
                         )
-                    } else null
+                    }
                 }
             }
             jobs.awaitAll().filterNotNull()
         }
 
-    private suspend fun probeHost(ip: String): Boolean = withContext(Dispatchers.IO) {
-        val ports = intArrayOf(80, 443, 22, 23, 8080, 8443, 554, 1883, 5000, 9000)
-        for (port in ports) {
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(ip, port), 200)
-                    return@withContext true
-                }
-            } catch (_: Exception) {}
-        }
+    /** Single ICMP-style liveness check (one packet), matching a normal ping. */
+    private suspend fun isHostAlive(ip: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            InetAddress.getByName(ip).isReachable(500)
+            InetAddress.getByName(ip).isReachable(ICMP_TIMEOUT_MS)
         } catch (_: Exception) { false }
+    }
+
+    /**
+     * Light service hint, run ONLY against a host already confirmed alive and limited
+     * to a couple of common web ports. This is normal client behaviour toward a known
+     * host, not a subnet-wide port sweep.
+     */
+    private suspend fun probeAliveHostServices(ip: String): List<String> = withContext(Dispatchers.IO) {
+        val services = mutableListOf<String>()
+        for ((port, label) in LIGHT_SERVICE_PORTS) {
+            try {
+                Socket().use { it.connect(InetSocketAddress(ip, port), SERVICE_PROBE_TIMEOUT_MS) }
+                services.add(label)
+            } catch (_: Exception) {}
+            delay(SERVICE_PROBE_SPACING_MS)
+        }
+        services
     }
 
     private fun resolveHostname(ip: String): String? {
@@ -263,6 +289,15 @@ class NetworkScanner(private val context: Context) {
     }
 
     companion object {
+        // Discovery is paced and ICMP-first to stay within ordinary LAN behaviour.
+        private const val DISCOVERY_CONCURRENCY = 16
+        private const val ICMP_TIMEOUT_MS = 600
+        private const val SERVICE_PROBE_TIMEOUT_MS = 350
+        private const val SERVICE_PROBE_SPACING_MS = 40L
+
+        // Only a couple of common web ports, and only on hosts already alive.
+        private val LIGHT_SERVICE_PORTS = listOf(80 to "HTTP", 443 to "HTTPS")
+
         private val OUI_MAP = mapOf(
             "FCFBFB" to "Apple", "F0D1B7" to "Apple", "3C0754" to "Apple",
             "B827EB" to "Raspberry Pi", "E45F01" to "Raspberry Pi",
