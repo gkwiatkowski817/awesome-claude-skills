@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1115" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>HomeVault — Inventory &amp; Pantry</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icons/icon.svg" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-bar">
+    <h1 id="view-title">Inventory</h1>
+    <div class="app-bar__actions">
+      <button id="btn-search" class="icon-btn" title="Search" aria-label="Search">🔍</button>
+      <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">⚙︎</button>
+      <button id="btn-add" class="icon-btn primary" title="Add" aria-label="Add">＋</button>
+    </div>
+  </header>
+
+  <div id="search-bar" class="search-bar hidden">
+    <input id="search-input" type="search" placeholder="Search…" autocomplete="off" />
+    <button id="search-close" class="icon-btn">✕</button>
+  </div>
+
+  <main id="app">
+    <!-- ===================== INVENTORY ===================== -->
+    <section class="view" data-view="inventory">
+      <div class="summary-cards">
+        <div class="card stat">
+          <span class="stat__label">Items</span>
+          <span class="stat__value" id="inv-count">0</span>
+        </div>
+        <div class="card stat">
+          <span class="stat__label">Total value</span>
+          <span class="stat__value" id="inv-total">—</span>
+        </div>
+        <div class="card stat">
+          <span class="stat__label">Rooms</span>
+          <span class="stat__value" id="inv-rooms">0</span>
+        </div>
+      </div>
+      <div class="chips" id="inv-room-filter"></div>
+      <ul class="list" id="inv-list"></ul>
+      <p class="empty hidden" id="inv-empty">No items yet. Tap ＋ to add your first belonging.</p>
+    </section>
+
+    <!-- ===================== MAP ===================== -->
+    <section class="view hidden" data-view="map">
+      <p class="hint">Tap the map to add a room. Long-press a room to rename or remove it. Drag item pins onto rooms to record where each belonging lives.</p>
+      <div class="map-toolbar">
+        <button class="btn small" id="map-add-room">＋ Room</button>
+        <button class="btn small" id="map-place">📍 Place item</button>
+        <button class="btn small ghost" id="map-clear">Reset view</button>
+      </div>
+      <div class="map-wrap">
+        <canvas id="map-canvas" width="800" height="1000"></canvas>
+      </div>
+      <div class="map-legend" id="map-legend"></div>
+    </section>
+
+    <!-- ===================== PANTRY ===================== -->
+    <section class="view hidden" data-view="pantry">
+      <div class="seg" id="pantry-locations"></div>
+      <div class="pantry-actions">
+        <button class="btn small" id="btn-scan">📷 Scan product</button>
+        <button class="btn small ghost" id="btn-show-expiring">⏰ Expiring soon</button>
+      </div>
+      <ul class="list" id="pantry-list"></ul>
+      <p class="empty hidden" id="pantry-empty">Nothing stored here yet. Tap ＋ or 📷 to add groceries.</p>
+    </section>
+
+    <!-- ===================== RECIPES ===================== -->
+    <section class="view hidden" data-view="recipes">
+      <p class="hint">Recipes ranked by how much you can already make from what's in your fridge, freezer and pantry.</p>
+      <div class="chips" id="recipe-filter">
+        <button class="chip active" data-recipe-filter="all">All</button>
+        <button class="chip" data-recipe-filter="ready">Ready to cook</button>
+        <button class="chip" data-recipe-filter="almost">Almost there</button>
+      </div>
+      <ul class="list" id="recipe-list"></ul>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-tab="inventory"><span>🏠</span>Inventory</button>
+    <button class="tab" data-tab="map"><span>🗺️</span>Map</button>
+    <button class="tab" data-tab="pantry"><span>🧺</span>Pantry</button>
+    <button class="tab" data-tab="recipes"><span>🍳</span>Recipes</button>
+  </nav>
+
+  <!-- Modal host -->
+  <div id="modal-root" class="modal-root hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>

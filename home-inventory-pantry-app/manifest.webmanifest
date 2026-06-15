@@ -1,0 +1,25 @@
+{
+  "name": "HomeVault — Inventory & Pantry",
+  "short_name": "HomeVault",
+  "description": "Home inventory for insurance plus a smart pantry with expiration alerts and recipe suggestions. Works offline, stores data on your device.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
