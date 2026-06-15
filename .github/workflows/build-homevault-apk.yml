@@ -1,0 +1,60 @@
+name: Build HomeVault APK
+
+# Builds the installable Android APK for the home-inventory-pantry-app on
+# GitHub's runners (which ship the Android SDK). Download the .apk from the
+# run's "Artifacts" section, or from the auto-created prerelease.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/great-gauss-uj4t9s
+    paths:
+      - 'home-inventory-pantry-app/**'
+      - '.github/workflows/build-homevault-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Build debug APK
+        working-directory: home-inventory-pantry-app/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp home-inventory-pantry-app/android/app/build/outputs/apk/debug/app-debug.apk HomeVault.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HomeVault-apk
+          path: HomeVault.apk
+          if-no-files-found: error
+
+      - name: Publish APK to a rolling prerelease
+        if: github.ref == 'refs/heads/claude/great-gauss-uj4t9s'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: homevault-latest
+          name: HomeVault (latest build)
+          body: Auto-built debug APK. Enable "install unknown apps" on your phone, then open this file.
+          files: HomeVault.apk
+          prerelease: true

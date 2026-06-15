@@ -9,7 +9,28 @@ Everything is stored **locally on the device** (IndexedDB) — no account, no se
 
 ---
 
-## Install on your Samsung S21
+## Get the installable `.apk` (native Android build)
+
+The app can also be wrapped as a real Android APK (a thin WebView shell in
+[`android/`](./android) that bundles the web app, so it works fully offline and
+keeps camera + IndexedDB + notifications). The APK is built automatically by
+GitHub Actions because the Android SDK can't be installed in every environment.
+
+**To get the file:**
+1. In the GitHub repo, open the **Actions** tab → **Build HomeVault APK** → run it
+   (it also runs automatically on every push to this app).
+2. When it finishes, download **`HomeVault-apk`** from the run's **Artifacts**,
+   or grab `HomeVault.apk` from the auto-created **`homevault-latest`** prerelease.
+3. Copy it to your Galaxy S21, tap it, allow **"Install unknown apps"** for your
+   browser/file manager when prompted, and install.
+
+This is a **debug-signed** APK — perfect for personal use. For Play Store
+distribution you'd swap in a release signing key.
+
+To build it yourself locally you need the Android SDK + JDK 17, then:
+`cd android && ./gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Install as a PWA on your Samsung S21
 
 You don't go through the Play Store — a PWA installs straight from the browser.
 
