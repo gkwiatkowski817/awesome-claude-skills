@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content">
+    android:layout_width="56dp"
+    android:layout_height="56dp">
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
+    <ImageButton
         android:id="@+id/fab_suggest"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:contentDescription="Sugeruj odpowiedź AI"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@drawable/fab_bg"
         android:src="@drawable/ic_ai_suggest"
-        android:backgroundTint="@color/overlay_btn_bg"
+        android:scaleType="center"
+        android:contentDescription="Sugeruj odpowiedź AI"
         android:elevation="8dp" />
 
     <ProgressBar
         android:id="@+id/progress_loading"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:layout_gravity="center"
-        android:indeterminateTint="#FFFFFF"
+        android:indeterminate="true"
         android:visibility="gone" />
 
 </FrameLayout>

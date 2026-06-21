@@ -1,21 +1,21 @@
 package com.whatsappsuggester.ui
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.textfield.TextInputEditText
 import com.whatsappsuggester.R
 import com.whatsappsuggester.service.OverlayService
 import com.whatsappsuggester.service.WhatsAppAccessibilityService
 import com.whatsappsuggester.utils.Prefs
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
 
     private lateinit var prefs: Prefs
     private lateinit var btnAccessibility: Button
@@ -23,123 +23,86 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAccessibilityStatus: TextView
     private lateinit var tvOverlayStatus: TextView
     private lateinit var tvStatus: TextView
-    private lateinit var statusDot: View
-    private lateinit var etApiKey: TextInputEditText
+    private lateinit var etApiKey: EditText
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         prefs = Prefs(this)
 
-        bindViews()
-        setupClickListeners()
-    }
+        btnAccessibility = findViewById(R.id.btn_accessibility) as Button
+        btnOverlay = findViewById(R.id.btn_overlay) as Button
+        tvAccessibilityStatus = findViewById(R.id.tv_accessibility_status) as TextView
+        tvOverlayStatus = findViewById(R.id.tv_overlay_status) as TextView
+        tvStatus = findViewById(R.id.tv_status) as TextView
+        etApiKey = findViewById(R.id.et_api_key) as EditText
 
-    override fun onResume() {
-        super.onResume()
-        updatePermissionStatus()
-    }
+        if (prefs.apiKey.isNotBlank()) etApiKey.setText(prefs.apiKey)
 
-    private fun bindViews() {
-        btnAccessibility = findViewById(R.id.btn_accessibility)
-        btnOverlay = findViewById(R.id.btn_overlay)
-        tvAccessibilityStatus = findViewById(R.id.tv_accessibility_status)
-        tvOverlayStatus = findViewById(R.id.tv_overlay_status)
-        tvStatus = findViewById(R.id.tv_status)
-        statusDot = findViewById(R.id.status_dot)
-        etApiKey = findViewById(R.id.et_api_key)
-
-        if (prefs.apiKey.isNotBlank()) {
-            etApiKey.setText(prefs.apiKey)
-        }
-    }
-
-    private fun setupClickListeners() {
         btnAccessibility.setOnClickListener {
-            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            startActivity(intent)
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
         btnOverlay.setOnClickListener {
-            val intent = Intent(
+            startActivity(Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
-            )
-            startActivity(intent)
+            ))
         }
 
-        findViewById<Button>(R.id.btn_save_api_key).setOnClickListener {
+        (findViewById(R.id.btn_save_api_key) as Button).setOnClickListener {
             val key = etApiKey.text?.toString()?.trim() ?: ""
-            if (key.startsWith("sk-ant-") && key.length > 20) {
+            if (key.startsWith("AIza") && key.length > 20) {
                 prefs.apiKey = key
-                startOverlayServiceIfReady()
-                Toast.makeText(this, "Klucz API zapisany!", Toast.LENGTH_SHORT).show()
-                updatePermissionStatus()
+                Toast.makeText(this, "Klucz Gemini zapisany!", Toast.LENGTH_SHORT).show()
+                startOverlayIfReady()
+                updateStatus()
             } else {
                 Toast.makeText(
                     this,
-                    "Nieprawidłowy klucz API. Powinien zaczynać się od sk-ant-",
+                    "Nieprawidłowy klucz — powinien zaczynać się od AIza",
                     Toast.LENGTH_LONG
                 ).show()
             }
         }
     }
 
-    private fun updatePermissionStatus() {
-        val accessibilityEnabled = WhatsAppAccessibilityService.isRunning()
-        val overlayEnabled = Settings.canDrawOverlays(this)
-        val apiKeySet = prefs.apiKey.isNotBlank()
+    override fun onResume() {
+        super.onResume()
+        updateStatus()
+    }
 
-        // Accessibility
-        if (accessibilityEnabled) {
-            tvAccessibilityStatus.text = "Aktywna"
-            tvAccessibilityStatus.setTextColor(getColor(R.color.success_green))
-            btnAccessibility.text = "Skonfigurowana"
-            btnAccessibility.backgroundTintList =
-                getColorStateList(R.color.success_green)
-        } else {
-            tvAccessibilityStatus.text = "Wymagana — kliknij Włącz"
-            tvAccessibilityStatus.setTextColor(getColor(R.color.error_red))
-            btnAccessibility.text = "Włącz"
-            btnAccessibility.backgroundTintList =
-                getColorStateList(R.color.green_primary)
-        }
+    private fun updateStatus() {
+        val accessibilityOk = WhatsAppAccessibilityService.isRunning()
+        val overlayOk = Settings.canDrawOverlays(this)
+        val apiKeyOk = prefs.apiKey.isNotBlank()
 
-        // Overlay
-        if (overlayEnabled) {
-            tvOverlayStatus.text = "Aktywna"
-            tvOverlayStatus.setTextColor(getColor(R.color.success_green))
-            btnOverlay.text = "Skonfigurowana"
-            btnOverlay.backgroundTintList =
-                getColorStateList(R.color.success_green)
-        } else {
-            tvOverlayStatus.text = "Wymagana — kliknij Włącz"
-            tvOverlayStatus.setTextColor(getColor(R.color.error_red))
-            btnOverlay.text = "Włącz"
-            btnOverlay.backgroundTintList =
-                getColorStateList(R.color.green_primary)
-        }
+        tvAccessibilityStatus.text = if (accessibilityOk) "Aktywna ✓" else "Wymagana — kliknij Włącz"
+        tvAccessibilityStatus.setTextColor(if (accessibilityOk) 0xFF388E3C.toInt() else 0xFFD32F2F.toInt())
+        btnAccessibility.text = if (accessibilityOk) "OK" else "Włącz"
 
-        // Overall status
-        val allReady = accessibilityEnabled && overlayEnabled && apiKeySet
-        if (allReady) {
+        tvOverlayStatus.text = if (overlayOk) "Aktywna ✓" else "Wymagana — kliknij Włącz"
+        tvOverlayStatus.setTextColor(if (overlayOk) 0xFF388E3C.toInt() else 0xFFD32F2F.toInt())
+        btnOverlay.text = if (overlayOk) "OK" else "Włącz"
+
+        if (accessibilityOk && overlayOk && apiKeyOk) {
             tvStatus.text = "Gotowe! Otwórz WhatsApp — zielony przycisk AI pojawi się automatycznie."
-            tvStatus.setTextColor(getColor(R.color.success_green))
-            startOverlayServiceIfReady()
+            tvStatus.setTextColor(0xFF25D366.toInt())
+            startOverlayIfReady()
         } else {
-            val missing = buildString {
-                if (!accessibilityEnabled) appendLine("• Włącz usługę dostępności")
-                if (!overlayEnabled) appendLine("• Przyznaj uprawnienie nakładki")
-                if (!apiKeySet) appendLine("• Zapisz klucz API Claude")
-            }
-            tvStatus.text = "Pozostało:\n$missing"
-            tvStatus.setTextColor(getColor(android.R.color.white))
+            tvStatus.text = buildString {
+                append("Pozostało do skonfigurowania:\n")
+                if (!accessibilityOk) append("• Włącz usługę dostępności\n")
+                if (!overlayOk) append("• Przyznaj uprawnienie nakładki\n")
+                if (!apiKeyOk) append("• Wpisz klucz API Gemini\n")
+            }.trimEnd()
+            tvStatus.setTextColor(0xFFCCCCCC.toInt())
         }
     }
 
-    private fun startOverlayServiceIfReady() {
+    private fun startOverlayIfReady() {
         if (Settings.canDrawOverlays(this) && prefs.apiKey.isNotBlank()) {
-            startForegroundService(Intent(this, OverlayService::class.java))
+            startService(Intent(this, OverlayService::class.java))
         }
     }
 }
