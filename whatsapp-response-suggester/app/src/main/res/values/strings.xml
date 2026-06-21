@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WA Suggester</string>
+    <string name="accessibility_service_description">Odczytuje wiadomości WhatsApp i sugeruje odpowiedzi w Twoim stylu przy użyciu AI.</string>
+    <string name="permission_overlay_title">Zezwolenie na wyświetlanie nad innymi aplikacjami</string>
+    <string name="permission_overlay_message">Ta aplikacja wymaga uprawnień do wyświetlania przycisku nad WhatsApp.</string>
+    <string name="permission_accessibility_title">Usługa dostępności</string>
+    <string name="permission_accessibility_message">Włącz usługę dostępności WA Suggester, aby aplikacja mogła odczytywać wiadomości WhatsApp.</string>
+    <string name="btn_grant">Przyznaj uprawnienie</string>
+    <string name="btn_open_settings">Otwórz ustawienia</string>
+    <string name="hint_api_key">Klucz API Anthropic (Claude)</string>
+    <string name="btn_save">Zapisz</string>
+    <string name="status_active">Status: Aktywny</string>
+    <string name="status_inactive">Status: Nieaktywny</string>
+    <string name="generating">Generuję odpowiedź…</string>
+    <string name="error_no_api_key">Najpierw zapisz klucz API Anthropic w ustawieniach.</string>
+    <string name="error_api">Błąd API: </string>
+    <string name="channel_name">WA Suggester</string>
+    <string name="channel_desc">Powiadomienie aktywnej usługi WA Suggester</string>
+    <string name="notification_text">WA Suggester działa w tle</string>
+    <string name="setup_complete">Konfiguracja zakończona! Otwórz WhatsApp.</string>
+    <string name="label_api_key">Klucz API Claude (Anthropic)</string>
+    <string name="info_api_key">Pobierz klucz na console.anthropic.com</string>
+    <string name="section_permissions">Wymagane uprawnienia</string>
+    <string name="section_api">Ustawienia API</string>
+    <string name="perm_accessibility_granted">Dostępność: Aktywna</string>
+    <string name="perm_accessibility_missing">Dostępność: Wymagana</string>
+    <string name="perm_overlay_granted">Nakładka: Aktywna</string>
+    <string name="perm_overlay_missing">Nakładka: Wymagana</string>
+</resources>

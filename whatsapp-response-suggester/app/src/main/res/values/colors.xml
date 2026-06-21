@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="green_primary">#25D366</color>
+    <color name="green_dark">#128C7E</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="overlay_btn_bg">#FF25D366</color>
+    <color name="overlay_btn_loading">#FFB0BEC5</color>
+    <color name="error_red">#FFD32F2F</color>
+    <color name="success_green">#FF388E3C</color>
+    <color name="card_bg">#FF1E1E1E</color>
+    <color name="surface">#FF2D2D2D</color>
+</resources>
