@@ -1,0 +1,52 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ "claude/whatsapp-response-suggester-jei3kp", "master" ]
+    paths:
+      - 'whatsapp-response-suggester/**'
+  workflow_dispatch:   # manual trigger button in GitHub Actions tab
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsapp-response-suggester
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WA-Suggester-debug
+          path: whatsapp-response-suggester/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Build release APK (unsigned)
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WA-Suggester-release-unsigned
+          path: whatsapp-response-suggester/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
