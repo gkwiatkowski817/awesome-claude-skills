@@ -52,17 +52,13 @@ class MainActivity : Activity() {
 
         (findViewById(R.id.btn_save_api_key) as Button).setOnClickListener {
             val key = etApiKey.text?.toString()?.trim() ?: ""
-            if (key.startsWith("AIza") && key.length > 20) {
+            if (key.length > 10) {
                 prefs.apiKey = key
                 Toast.makeText(this, "Klucz Gemini zapisany!", Toast.LENGTH_SHORT).show()
                 startOverlayIfReady()
                 updateStatus()
             } else {
-                Toast.makeText(
-                    this,
-                    "Nieprawidłowy klucz — powinien zaczynać się od AIza",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this, "Klucz jest za krótki", Toast.LENGTH_LONG).show()
             }
         }
     }
