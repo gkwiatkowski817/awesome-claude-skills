@@ -43,12 +43,16 @@ class OverlayService : Service() {
     private var isDragging = false
     private var isGenerating = false
 
+    private var generateStartedAt = 0L
+
     private val pollRunnable = object : Runnable {
         override fun run() {
             val waActive = WhatsAppAccessibilityService.isWhatsAppActive()
+            // While generating, never hide — tapping the overlay can briefly flip isWhatsAppActive() to false
+            val generating = isGenerating && (System.currentTimeMillis() - generateStartedAt < 60_000)
             if (waActive && overlayView == null) {
                 showOverlay()
-            } else if (!waActive && overlayView != null) {
+            } else if (!waActive && overlayView != null && !generating) {
                 hideOverlay()
             }
             mainHandler.postDelayed(this, POLL_INTERVAL_MS)
@@ -158,31 +162,40 @@ class OverlayService : Service() {
             Toast.makeText(this, "Znalazłem ${messages.size} wiad. od $contactName. Pytam AI...", Toast.LENGTH_SHORT).show()
 
             isGenerating = true
+            generateStartedAt = System.currentTimeMillis()
             fab.visibility = View.INVISIBLE
             progress.visibility = View.VISIBLE
 
             Thread {
+                var reply = ""
+                var error = ""
                 try {
-                    val reply = GeminiApiClient(apiKey).generateReply(messages, contactName)
-                    mainHandler.post {
-                        val filled = accessibility.fillTextInput(reply)
-                        progress.visibility = View.GONE
-                        fab.visibility = View.VISIBLE
-                        isGenerating = false
-                        if (filled) {
-                            Toast.makeText(this, "Gotowe! Odpowiedź wpisana.", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this, "AI odpowiedział, ale nie udało się wpisać tekstu. Wróć do rozmowy.", Toast.LENGTH_LONG).show()
-                        }
-                    }
+                    reply = GeminiApiClient(apiKey).generateReply(messages, contactName)
                 } catch (e: Exception) {
                     Log.e(TAG, "API error", e)
-                    mainHandler.post {
+                    error = e.message ?: "nieznany błąd"
+                }
+                mainHandler.post {
+                    try {
                         progress.visibility = View.GONE
                         fab.visibility = View.VISIBLE
                         isGenerating = false
-                        val msg = e.message ?: "nieznany błąd"
-                        Toast.makeText(this, "Błąd AI: $msg", Toast.LENGTH_LONG).show()
+                        if (error.isNotEmpty()) {
+                            Toast.makeText(this, "Błąd AI: $error", Toast.LENGTH_LONG).show()
+                        } else {
+                            val filled = accessibility.fillTextInput(reply)
+                            if (filled) {
+                                Toast.makeText(this, "Gotowe! Odpowiedź wpisana.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(this, "AI odpowiedział ale wpisanie nie zadziałało. Wróć do rozmowy i spróbuj ponownie.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "UI update error", e)
+                        progress.visibility = View.GONE
+                        fab.visibility = View.VISIBLE
+                        isGenerating = false
+                        Toast.makeText(this, "Błąd wpisywania: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }.start()
