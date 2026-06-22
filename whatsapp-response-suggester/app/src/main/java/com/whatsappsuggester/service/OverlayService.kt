@@ -27,8 +27,6 @@ class OverlayService : Service() {
         const val ACTION_SHOW = "com.whatsappsuggester.SHOW_OVERLAY"
         const val ACTION_HIDE = "com.whatsappsuggester.HIDE_OVERLAY"
         private const val TAG = "OverlayService"
-
-        // TYPE_APPLICATION_OVERLAY = 2038 (API 26+, always available since minSdk=26)
         private const val TYPE_APPLICATION_OVERLAY = 2038
     }
 
@@ -42,6 +40,7 @@ class OverlayService : Service() {
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isDragging = false
+    private var isGenerating = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -77,8 +76,8 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT
         )
         params.gravity = Gravity.BOTTOM or Gravity.END
-        params.x = 20
-        params.y = 160
+        params.x = 24
+        params.y = 200
 
         val fab = view.findViewById(R.id.fab_suggest) as ImageButton
         val progress = view.findViewById(R.id.progress_loading) as ProgressBar
@@ -96,7 +95,7 @@ class OverlayService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (event.rawX - initialTouchX).toInt()
                     val dy = (event.rawY - initialTouchY).toInt()
-                    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
                         isDragging = true
                         params.x = initialX - dx
                         params.y = initialY + dy
@@ -113,46 +112,45 @@ class OverlayService : Service() {
         }
 
         fab.setOnClickListener {
-            if (prefs.apiKey.isBlank()) {
+            if (isGenerating) return@setOnClickListener
+
+            val apiKey = prefs.apiKey
+            if (apiKey.isBlank()) {
                 Toast.makeText(this, getString(R.string.error_no_api_key), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
+
+            val accessibility = WhatsAppAccessibilityService.instance
+            if (accessibility == null) {
+                Toast.makeText(this, "Włącz usługę dostępności WA Suggester!", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            // Collect messages on main thread (rootInActiveWindow requires main thread)
+            val (messages, contactName) = accessibility.collectMessages()
+
+            if (messages.isEmpty()) {
+                Toast.makeText(this, "Brak wiadomości — przewiń rozmowę w górę.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            // Show loading state
+            isGenerating = true
             fab.visibility = View.INVISIBLE
             progress.visibility = View.VISIBLE
 
+            // API call on background thread
             Thread {
                 try {
-                    val accessibility = WhatsAppAccessibilityService.instance
-                    if (accessibility == null) {
-                        mainHandler.post {
-                            Toast.makeText(this, "Włącz usługę dostępności!", Toast.LENGTH_LONG).show()
-                            progress.visibility = View.GONE
-                            fab.visibility = View.VISIBLE
-                        }
-                        return@Thread
-                    }
-
-                    val (messages, contactName) = accessibility.collectMessages()
-
-                    if (messages.isEmpty()) {
-                        mainHandler.post {
-                            Toast.makeText(this, "Brak wiadomości do analizy.", Toast.LENGTH_SHORT).show()
-                            progress.visibility = View.GONE
-                            fab.visibility = View.VISIBLE
-                        }
-                        return@Thread
-                    }
-
-                    val client = GeminiApiClient(prefs.apiKey)
-                    val reply = client.generateReply(messages, contactName)
-
+                    val reply = GeminiApiClient(apiKey).generateReply(messages, contactName)
                     mainHandler.post {
                         accessibility.fillTextInput(reply)
                         progress.visibility = View.GONE
                         fab.visibility = View.VISIBLE
+                        isGenerating = false
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error generating reply", e)
+                    Log.e(TAG, "API error", e)
                     mainHandler.post {
                         Toast.makeText(
                             this,
@@ -161,6 +159,7 @@ class OverlayService : Service() {
                         ).show()
                         progress.visibility = View.GONE
                         fab.visibility = View.VISIBLE
+                        isGenerating = false
                     }
                 }
             }.start()
@@ -170,7 +169,7 @@ class OverlayService : Service() {
             windowManager.addView(view, params)
             overlayView = view
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to add overlay", e)
+            Log.e(TAG, "Failed to add overlay view", e)
         }
     }
 
@@ -179,5 +178,6 @@ class OverlayService : Service() {
             try { windowManager.removeView(it) } catch (ignored: Exception) {}
             overlayView = null
         }
+        isGenerating = false
     }
 }

@@ -13,17 +13,13 @@ class WhatsAppAccessibilityService : AccessibilityService() {
 
     companion object {
         const val TAG = "WAAccessibility"
-        const val ACTION_MESSAGES_READY = "com.whatsappsuggester.MESSAGES_READY"
-        const val EXTRA_MESSAGES = "messages"
-        const val EXTRA_CONTACT_NAME = "contact_name"
         const val WHATSAPP_PKG = "com.whatsapp"
         const val WHATSAPP_BUSINESS_PKG = "com.whatsapp.w4b"
 
-        // Resource IDs in WhatsApp (may vary across versions)
-        private const val CONVERSATION_TITLE = "com.whatsapp:id/conversation_contact_name"
-        private const val MESSAGE_LIST = "com.whatsapp:id/conversation_recycler_view"
-        private const val TEXT_INPUT = "com.whatsapp:id/entry"
-        private const val TEXT_INPUT_ALT = "com.whatsapp:id/conversation_entry"
+        private const val TEXT_INPUT_ID = "com.whatsapp:id/entry"
+        private const val TEXT_INPUT_ID2 = "com.whatsapp:id/conversation_entry"
+        private const val MSG_LIST_ID = "com.whatsapp:id/conversation_recycler_view"
+        private const val TITLE_ID = "com.whatsapp:id/conversation_contact_name"
 
         @Volatile
         var instance: WhatsAppAccessibilityService? = null
@@ -32,8 +28,8 @@ class WhatsAppAccessibilityService : AccessibilityService() {
     }
 
     private val prefs by lazy { Prefs(this) }
-    private var currentContactName: String = ""
-    private var isInConversation = false
+    private var currentContactName: String = "contact"
+    private var whatsAppVisible = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -46,192 +42,150 @@ class WhatsAppAccessibilityService : AccessibilityService() {
         instance = null
     }
 
+    override fun onInterrupt() {}
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
         val pkg = event.packageName?.toString() ?: return
-        if (pkg != WHATSAPP_PKG && pkg != WHATSAPP_BUSINESS_PKG) return
 
         when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                val isWhatsApp = (pkg == WHATSAPP_PKG || pkg == WHATSAPP_BUSINESS_PKG)
+                if (isWhatsApp && !whatsAppVisible) {
+                    // Entered WhatsApp
+                    whatsAppVisible = true
+                    checkAndShowOverlay()
+                } else if (!isWhatsApp && whatsAppVisible) {
+                    // Left WhatsApp
+                    whatsAppVisible = false
+                    sendOverlayCommand(false)
+                }
+            }
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                updateConversationState()
+                if (pkg == WHATSAPP_PKG || pkg == WHATSAPP_BUSINESS_PKG) {
+                    checkAndShowOverlay()
+                }
             }
         }
     }
 
-    override fun onInterrupt() {
-        Log.d(TAG, "Accessibility service interrupted")
-    }
-
-    private fun updateConversationState() {
+    private fun checkAndShowOverlay() {
         val root = rootInActiveWindow ?: return
-        val textInput = findTextInput(root)
-        val inConversation = textInput != null
-
-        if (inConversation != isInConversation) {
-            isInConversation = inConversation
-            if (inConversation) {
-                currentContactName = getContactName(root)
-                notifyOverlayService(show = true)
-            } else {
-                notifyOverlayService(show = false)
-            }
-        }
+        val hasInput = findTextInput(root) != null
         root.recycle()
+        sendOverlayCommand(hasInput)
     }
 
-    private fun notifyOverlayService(show: Boolean) {
+    private fun sendOverlayCommand(show: Boolean) {
         val intent = Intent(this, OverlayService::class.java)
         intent.action = if (show) OverlayService.ACTION_SHOW else OverlayService.ACTION_HIDE
         startService(intent)
     }
 
-    fun fillTextInput(text: String) {
-        val root = rootInActiveWindow ?: return
-        val textInput = findTextInput(root)
-        if (textInput != null) {
-            val args = Bundle()
-            args.putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text
-            )
-            textInput.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-            textInput.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)
-        }
-        root.recycle()
-    }
-
+    // Called from main thread by OverlayService button click
     fun collectMessages(): Pair<List<ChatMessage>, String> {
-        val root = rootInActiveWindow ?: return Pair(emptyList(), "")
-        val contactName = getContactName(root)
+        val root = rootInActiveWindow ?: return Pair(emptyList(), currentContactName)
         val messages = mutableListOf<ChatMessage>()
-
         try {
-            val messageList = findNodeById(root, MESSAGE_LIST)
-                ?: findNodesByClass(root, "androidx.recyclerview.widget.RecyclerView")
-                    .firstOrNull()
+            val contactName = getContactName(root)
+            if (contactName.isNotEmpty()) currentContactName = contactName
 
-            if (messageList != null) {
-                collectMessagesFromList(messageList, messages, contactName)
+            val msgList = findNodeById(root, MSG_LIST_ID)
+                ?: findNodesByClass(root, "RecyclerView").firstOrNull()
+                ?: findNodesByClass(root, "ListView").firstOrNull()
+
+            if (msgList != null) {
+                for (i in 0 until msgList.childCount) {
+                    val child = msgList.getChild(i) ?: continue
+                    val text = extractText(child)
+                    if (text.isNotEmpty()) {
+                        messages.add(ChatMessage(
+                            sender = if (isOutgoing(child)) "Me" else currentContactName,
+                            text = text,
+                            isMe = isOutgoing(child)
+                        ))
+                    }
+                    child.recycle()
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error collecting messages", e)
+            Log.e(TAG, "collectMessages failed", e)
         }
-
         root.recycle()
-        return Pair(messages, contactName)
+        return Pair(messages, currentContactName)
     }
 
-    private fun collectMessagesFromList(
-        node: AccessibilityNodeInfo,
-        messages: MutableList<ChatMessage>,
-        contactName: String
-    ) {
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val text = extractTextFromNode(child)
-            if (text.isNotBlank()) {
-                val isOutgoing = isOutgoingMessage(child)
-                messages.add(ChatMessage(
-                    sender = if (isOutgoing) "Me" else contactName,
-                    text = text,
-                    isMe = isOutgoing
-                ))
-            }
-            child.recycle()
+    fun fillTextInput(text: String) {
+        val root = rootInActiveWindow ?: return
+        val input = findTextInput(root)
+        if (input != null) {
+            val args = Bundle()
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            input.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
         }
-    }
-
-    private fun extractTextFromNode(node: AccessibilityNodeInfo): String {
-        val sb = StringBuilder()
-        collectTextRecursive(node, sb)
-        return sb.toString().trim()
-    }
-
-    private fun collectTextRecursive(node: AccessibilityNodeInfo, sb: StringBuilder) {
-        val text = node.text?.toString()
-        if (!text.isNullOrBlank() && !looksLikeTimestamp(text)) {
-            if (sb.isNotEmpty()) sb.append(" ")
-            sb.append(text)
-        }
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            collectTextRecursive(child, sb)
-            child.recycle()
-        }
-    }
-
-    private fun looksLikeTimestamp(text: String): Boolean {
-        return text.matches(Regex("""\d{1,2}:\d{2}(\s*(AM|PM|am|pm))?""")) ||
-                text.matches(Regex("""\d{1,2}/\d{1,2}/\d{2,4}""")) ||
-                text in setOf("Delivered", "Read", "Sent", "Pending") ||
-                text.matches(Regex("""(Yesterday|Today|\w+, \w+ \d+)"""))
-    }
-
-    private fun isOutgoingMessage(node: AccessibilityNodeInfo): Boolean {
-        val desc = node.contentDescription?.toString() ?: ""
-        if (desc.contains("You:", ignoreCase = true) ||
-            desc.contains("Ty:", ignoreCase = true)) return true
-
-        // WhatsApp typically places outgoing messages with a specific view ID pattern
-        val viewId = node.viewIdResourceName ?: ""
-        if (viewId.contains("outgoing", ignoreCase = true)) return true
-
-        // Check layout direction / position heuristic via class names
-        val className = node.className?.toString() ?: ""
-        return className.contains("out", ignoreCase = true)
+        root.recycle()
     }
 
     private fun getContactName(root: AccessibilityNodeInfo): String {
-        // Try resource ID first
-        val nameNode = findNodeById(root, CONVERSATION_TITLE)
-        if (nameNode != null) {
-            val name = nameNode.text?.toString() ?: ""
-            nameNode.recycle()
+        val node = findNodeById(root, TITLE_ID)
+        if (node != null) {
+            val name = node.text?.toString() ?: ""
+            node.recycle()
             if (name.isNotBlank()) return name
         }
-        // Fallback: look for the title in the action bar area
-        val candidates = findNodesByClass(root, "android.widget.TextView")
-        for (node in candidates) {
-            val text = node.text?.toString() ?: ""
-            node.recycle()
-            if (text.isNotBlank() && text.length > 1 && !text.contains(":")) {
-                return text
-            }
-        }
-        return currentContactName.ifBlank { "contact" }
+        return ""
     }
 
     private fun findTextInput(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        return findNodeById(root, TEXT_INPUT)
-            ?: findNodeById(root, TEXT_INPUT_ALT)
-            ?: findNodesByClass(root, "android.widget.EditText").firstOrNull()
+        return findNodeById(root, TEXT_INPUT_ID)
+            ?: findNodeById(root, TEXT_INPUT_ID2)
+            ?: findNodesByClass(root, "EditText").firstOrNull()
     }
 
-    private fun findNodeById(root: AccessibilityNodeInfo, id: String): AccessibilityNodeInfo? {
-        val results = root.findAccessibilityNodeInfosByViewId(id)
-        return results?.firstOrNull()
+    private fun extractText(node: AccessibilityNodeInfo): String {
+        val sb = StringBuilder()
+        collectText(node, sb)
+        return sb.toString().trim()
     }
 
-    private fun findNodesByClass(
-        root: AccessibilityNodeInfo,
-        className: String
-    ): List<AccessibilityNodeInfo> {
-        val results = mutableListOf<AccessibilityNodeInfo>()
-        findNodesByClassRecursive(root, className, results)
-        return results
-    }
-
-    private fun findNodesByClassRecursive(
-        node: AccessibilityNodeInfo,
-        className: String,
-        results: MutableList<AccessibilityNodeInfo>
-    ) {
-        if (node.className?.toString()?.contains(className, ignoreCase = true) == true) {
-            results.add(node)
+    private fun collectText(node: AccessibilityNodeInfo, sb: StringBuilder) {
+        val t = node.text?.toString()
+        if (!t.isNullOrBlank() && !isTimestamp(t)) {
+            if (sb.isNotEmpty()) sb.append(" ")
+            sb.append(t)
         }
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            findNodesByClassRecursive(child, className, results)
+            val c = node.getChild(i) ?: continue
+            collectText(c, sb)
+            c.recycle()
+        }
+    }
+
+    private fun isTimestamp(t: String) =
+        t.matches(Regex("""\d{1,2}:\d{2}(\s*(AM|PM))?""")) ||
+        t in setOf("Delivered", "Read", "Sent", "Today", "Yesterday")
+
+    private fun isOutgoing(node: AccessibilityNodeInfo): Boolean {
+        val desc = node.contentDescription?.toString() ?: ""
+        if (desc.contains("You:", ignoreCase = true)) return true
+        val id = node.viewIdResourceName ?: ""
+        return id.contains("out", ignoreCase = true)
+    }
+
+    private fun findNodeById(root: AccessibilityNodeInfo, id: String): AccessibilityNodeInfo? =
+        root.findAccessibilityNodeInfosByViewId(id)?.firstOrNull()
+
+    private fun findNodesByClass(root: AccessibilityNodeInfo, cls: String): List<AccessibilityNodeInfo> {
+        val result = mutableListOf<AccessibilityNodeInfo>()
+        findByClassRec(root, cls, result)
+        return result
+    }
+
+    private fun findByClassRec(node: AccessibilityNodeInfo, cls: String, result: MutableList<AccessibilityNodeInfo>) {
+        if (node.className?.toString()?.contains(cls, ignoreCase = true) == true) result.add(node)
+        for (i in 0 until node.childCount) {
+            val c = node.getChild(i) ?: continue
+            findByClassRec(c, cls, result)
         }
     }
 }
