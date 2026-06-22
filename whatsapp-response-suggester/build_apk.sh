@@ -73,15 +73,16 @@ kotlinc \
 echo "  Kotlin sources compiled"
 
 # 6. Convert .class files to DEX using R8/D8
+# Pass stdlib JARs as positional args (not --classpath) so they're included in DEX
 echo "[5/7] Converting to DEX (R8/D8)..."
 CLASS_FILES=$(find "$BUILD_DIR/classes" -name "*.class" | tr '\n' ' ')
 java -cp "$R8_JAR" com.android.tools.r8.D8 \
     --lib "$ANDROID_JAR" \
-    --classpath "$KOTLIN_STDLIB" \
-    --classpath "$KOTLIN_REFLECT" \
     --output "$BUILD_DIR/dex/" \
     --min-api 26 \
-    $CLASS_FILES
+    $CLASS_FILES \
+    "$KOTLIN_STDLIB" \
+    "$KOTLIN_REFLECT"
 echo "  DEX generated: $(du -sh $BUILD_DIR/dex/classes.dex | cut -f1)"
 
 # 7. Add DEX + kotlin stdlib to APK
