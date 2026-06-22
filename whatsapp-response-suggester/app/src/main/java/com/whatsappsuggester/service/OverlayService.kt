@@ -28,6 +28,7 @@ class OverlayService : Service() {
         const val ACTION_HIDE = "com.whatsappsuggester.HIDE_OVERLAY"
         private const val TAG = "OverlayService"
         private const val TYPE_APPLICATION_OVERLAY = 2038
+        private const val POLL_INTERVAL_MS = 500L
     }
 
     private lateinit var windowManager: WindowManager
@@ -42,11 +43,24 @@ class OverlayService : Service() {
     private var isDragging = false
     private var isGenerating = false
 
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            val waActive = WhatsAppAccessibilityService.isWhatsAppActive()
+            if (waActive && overlayView == null) {
+                showOverlay()
+            } else if (!waActive && overlayView != null) {
+                hideOverlay()
+            }
+            mainHandler.postDelayed(this, POLL_INTERVAL_MS)
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        mainHandler.postDelayed(pollRunnable, POLL_INTERVAL_MS)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -59,6 +73,7 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        mainHandler.removeCallbacks(pollRunnable)
         hideOverlay()
     }
 
@@ -112,7 +127,10 @@ class OverlayService : Service() {
         }
 
         fab.setOnClickListener {
-            if (isGenerating) return@setOnClickListener
+            if (isGenerating) {
+                Toast.makeText(this, "Już generuję odpowiedź, poczekaj...", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
             val apiKey = prefs.apiKey
             if (apiKey.isBlank()) {
@@ -122,44 +140,49 @@ class OverlayService : Service() {
 
             val accessibility = WhatsAppAccessibilityService.instance
             if (accessibility == null) {
-                Toast.makeText(this, "Włącz usługę dostępności WA Suggester!", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Usługa dostępności nie działa! Włącz ją w Ustawieniach.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            // Collect messages on main thread (rootInActiveWindow requires main thread)
-            val (messages, contactName) = accessibility.collectMessages()
+            Toast.makeText(this, "Szukam wiadomości...", Toast.LENGTH_SHORT).show()
+
+            val (messages, contactName, diagnostics) = accessibility.collectMessages()
+
+            Log.d(TAG, "collectMessages: ${messages.size} msgs, contact=$contactName, diag=$diagnostics")
 
             if (messages.isEmpty()) {
-                Toast.makeText(this, "Brak wiadomości — przewiń rozmowę w górę.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Brak wiadomości! $diagnostics", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            // Show loading state
+            Toast.makeText(this, "Znalazłem ${messages.size} wiad. od $contactName. Pytam AI...", Toast.LENGTH_SHORT).show()
+
             isGenerating = true
             fab.visibility = View.INVISIBLE
             progress.visibility = View.VISIBLE
 
-            // API call on background thread
             Thread {
                 try {
                     val reply = GeminiApiClient(apiKey).generateReply(messages, contactName)
                     mainHandler.post {
-                        accessibility.fillTextInput(reply)
+                        val filled = accessibility.fillTextInput(reply)
                         progress.visibility = View.GONE
                         fab.visibility = View.VISIBLE
                         isGenerating = false
+                        if (filled) {
+                            Toast.makeText(this, "Gotowe! Odpowiedź wpisana.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this, "AI odpowiedział, ale nie udało się wpisać tekstu. Wróć do rozmowy.", Toast.LENGTH_LONG).show()
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "API error", e)
                     mainHandler.post {
-                        Toast.makeText(
-                            this,
-                            "${getString(R.string.error_api)}${e.message}",
-                            Toast.LENGTH_LONG
-                        ).show()
                         progress.visibility = View.GONE
                         fab.visibility = View.VISIBLE
                         isGenerating = false
+                        val msg = e.message ?: "nieznany błąd"
+                        Toast.makeText(this, "Błąd AI: $msg", Toast.LENGTH_LONG).show()
                     }
                 }
             }.start()
@@ -170,6 +193,7 @@ class OverlayService : Service() {
             overlayView = view
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add overlay view", e)
+            Toast.makeText(this, "Błąd nakładki: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
